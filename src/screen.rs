@@ -155,12 +155,13 @@ impl<'a> Screen<'a> {
 
         self.move_to_home_position();
         let nlines = self.flushed_numof_lines;
-        self.sweep_window(nlines);
+        self.sweep_window(nlines+1);
 
         for (_i, ln) in self.linebuf[begin..end].iter().enumerate() {
             let dl = self.decorate(&ln);
             writeln!(self.ostream, "{}", dl);
         }
+        write!(self.ostream, ":");
         self.flush();
         self.dirty = false;
 
@@ -353,6 +354,8 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_quit(&mut self) {
+        cis::el(2);
+        writeln!(self.ostream);
         self.flush();
     }
 
@@ -424,7 +427,7 @@ mod tests {
         scr.call(ScreenCall::MoveRight(2));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveToEndOfLine);
-        thread::sleep(time::Duration::from_millis(1000));
+        thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(1));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(2));
