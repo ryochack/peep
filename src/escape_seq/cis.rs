@@ -5,38 +5,51 @@ extern crate termios;
 use escape_seq::{echo_off, echo_on};
 use std::io::{self, Read, Write};
 
+fn _flush() {
+    io::stdout().flush().unwrap();
+}
+
+fn _write(s: &str) {
+    write!(io::stdout(), "{}", s).unwrap();
+}
+
+// not zero
+fn _nz(n: usize) -> usize {
+    if n == 0 { 1 } else { n }
+}
+
 /// CUU: cursor up
 pub fn cuu(n: usize) {
-    write!(io::stdout(), "\x1b[{}A", n).unwrap();
+    _write(&format!("\x1b[{}A", _nz(n)));
 }
 /// CUD: cursor down
 pub fn cud(n: usize) {
-    write!(io::stdout(), "\x1b[{}B", n).unwrap();
+    _write(&format!("\x1b[{}B", _nz(n)));
 }
 /// CUF: cursor forward
 pub fn cuf(n: usize) {
-    write!(io::stdout(), "\x1b[{}C", n).unwrap();
+    _write(&format!("\x1b[{}C", _nz(n)));
 }
 /// CUB: cursor back
 pub fn cub(n: usize) {
-    write!(io::stdout(), "\x1b[{}D", n).unwrap();
+    _write(&format!("\x1b[{}D", _nz(n)));
 }
 /// CNL: cursor next line
 pub fn cnl(n: usize) {
-    write!(io::stdout(), "\x1b[{}E", n).unwrap();
+    _write(&format!("\x1b[{}E", _nz(n)));
 }
 /// CPL: cursor previous line
 pub fn cpl(n: usize) {
-    write!(io::stdout(), "\x1b[{}F", n).unwrap();
+    _write(&format!("\x1b[{}F", _nz(n)));
 }
 /// CHA: cursor horizontal absolute
 pub fn cha(n: usize) {
-    write!(io::stdout(), "\x1b[{}G", n).unwrap();
+    _write(&format!("\x1b[{}G", _nz(n)));
 }
 
 /// CUP: cursor position
 pub fn cup(row: usize, col: usize) {
-    write!(io::stdout(), "\x1b[{};{}H", row, col).unwrap();
+    _write(&format!("\x1b[{};{}H", _nz(row), _nz(col)));
 }
 /// ED: erase in display
 /// If n is 0 (or missing), clear from cursor to end of screen.
@@ -45,7 +58,7 @@ pub fn cup(row: usize, col: usize) {
 /// If n {\displaystyle n} n is 3, clear entire screen and delete all lines saved in the scrollback buffer (this feature was added for xterm and is supported by other terminal applications).
 pub fn ed(n: usize) {
     if n <= 3 {
-        write!(io::stdout(), "\x1b[{}J", n).unwrap();
+        _write(&format!("\x1b[{}J", n));
     }
 }
 /// EL: erase in line
@@ -54,34 +67,30 @@ pub fn ed(n: usize) {
 /// If n is 2, clear entire line. Cursor position does not change.
 pub fn el(n: usize) {
     if n <= 2 {
-        write!(io::stdout(), "\x1b[{}K", n).unwrap();
+        _write(&format!("\x1b[{}K", n));
     }
 }
 /// SU: scroll up
 pub fn su(n: usize) {
-    write!(io::stdout(), "\x1b[{}S", n).unwrap();
+    _write(&format!("\x1b[{}S", _nz(n)));
 }
 /// SD: scroll down
 pub fn sd(n: usize) {
-    write!(io::stdout(), "\x1b[{}T", n).unwrap();
-}
-/// HVP: horizontal vertical position (same as CUP)
-pub fn hvp(row: usize, col: usize) {
-    write!(io::stdout(), "\x1b[{};{}f", row, col).unwrap();
+    _write(&format!("\x1b[{}T", _nz(n)));
 }
 /// SGR: select graphic rendition
 /// SGR parameters: https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
 pub fn sgr(n: usize) {
     if n <= 107 {
-        write!(io::stdout(), "\x1b[{}m", n).unwrap();
+        _write(&format!("\x1b[{}m", n));
     }
 }
 /// DSR: device status report
 /// return (row, col)
 pub fn dsr() -> Option<(usize, usize)> {
     let oldstat: Box<termios::Termios> = Box::new(echo_off());
-    write!(io::stdout(), "\x1b[6n").unwrap();
-    io::stdout().flush().unwrap();
+    _write(&format!("\x1b[6n"));
+    _flush();
     let (mut row, mut col, mut tmp) = (0usize, 0usize, 0usize);
     let s = io::stdin();
     // => "[${row};${col}R"
@@ -109,19 +118,144 @@ pub fn dsr() -> Option<(usize, usize)> {
 }
 /// SCP: save cursor position
 pub fn scp() {
-    write!(io::stdout(), "\x1b[s").unwrap();
+    _write(&format!("\x1b[s"));
 }
 /// RCP: restore cursor position
 pub fn rcp() {
-    write!(io::stdout(), "\x1b[u").unwrap();
+    _write(&format!("\x1b[u"));
 }
 /// SM: set mode
 /// mode: http://ttssh2.osdn.jp/manual/ja/about/ctrlseq.html#mode
 pub fn sm(n: usize) {
-    write!(io::stdout(), "\x1b[{}h", n).unwrap();
+    _write(&format!("\x1b[{}h", n));
 }
 /// RM: reset mode
 pub fn rm(n: usize) {
-    write!(io::stdout(), "\x1b[{}l", n).unwrap();
+    _write(&format!("\x1b[{}l", n));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup() {
+        scp();
+    }
+
+    fn teardown() {
+        rcp();
+    }
+
+    #[test]
+    fn test_cup() {
+        setup();
+        // terminal cordinate start from (1,1)
+        cup(0, 0);
+        assert_eq!(dsr(), Some((1, 1)));
+        // cup(1, 1) -> (1, 1)
+        cup(1, 1);
+        assert_eq!(dsr(), Some((1, 1)));
+        // cup(3, 5) -> (3, 5)
+        cup(3, 5);
+        assert_eq!(dsr(), Some((3, 5)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cuu() {
+        setup();
+        cup(5, 3);
+        cuu(1);
+        assert_eq!(dsr(), Some((4, 3)));
+        cuu(2);
+        assert_eq!(dsr(), Some((2, 3)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cud() {
+        setup();
+        cup(1, 5);
+        cud(1);
+        assert_eq!(dsr(), Some((2, 5)));
+        cud(2);
+        assert_eq!(dsr(), Some((4, 5)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cuf() {
+        setup();
+        cup(3, 1);
+        cuf(1);
+        assert_eq!(dsr(), Some((3, 2)));
+        cuf(2);
+        assert_eq!(dsr(), Some((3, 4)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cub() {
+        setup();
+        cup(3, 5);
+        cub(1);
+        assert_eq!(dsr(), Some((3, 4)));
+        cub(2);
+        assert_eq!(dsr(), Some((3, 2)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cnl() {
+        setup();
+        cup(3, 5);
+        cnl(1);
+        assert_eq!(dsr(), Some((4, 1)));
+        cup(3, 5);
+        cnl(2);
+        assert_eq!(dsr(), Some((5, 1)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cpl() {
+        setup();
+        cup(3, 5);
+        cpl(1);
+        assert_eq!(dsr(), Some((2, 1)));
+        cup(3, 5);
+        cpl(2);
+        assert_eq!(dsr(), Some((1, 1)));
+        teardown();
+    }
+
+    #[test]
+    fn test_cha() {
+        setup();
+        cup(3, 5);
+        cha(1);
+        assert_eq!(dsr(), Some((3, 1)));
+        cha(7);
+        assert_eq!(dsr(), Some((3, 7)));
+        teardown();
+    }
+
+    // #[test]
+    fn test_su() {
+        setup();
+        cup(3, 5);
+        su(1);
+        assert_eq!(dsr(), Some((3, 5)));
+        teardown();
+    }
+
+    // #[test]
+    fn test_sd() {
+        setup();
+        cup(3, 5);
+        sd(1);
+        assert_eq!(dsr(), Some((3, 5)));
+        teardown();
+    }
 }
 
