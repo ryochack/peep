@@ -8,13 +8,6 @@ use escape_seq::cis;
 use std::io::{self, Write};
 use std::cmp;
 
-// start position is (1, 1)
-#[derive(Clone, Copy)]
-struct Position {
-    row: usize,
-    col: usize,
-}
-
 // start point is (0, 0)
 #[derive(Clone, Copy)]
 struct Point {
@@ -47,11 +40,11 @@ pub enum ScreenCall {
     Quit,
 }
 
-pub struct Screen<'a> {
+struct Screen<'a> {
     linebuf: &'a [String],
     ostream: &'a mut Write,
     specified_numof_lines: usize,
-    home_pos: Position,   // terminal home position
+    flushed_numof_lines: usize,
     specified_pt: Point,  // buffer point
 
     show_nonprinting: bool,
@@ -68,7 +61,7 @@ impl<'a> Screen<'a> {
             linebuf: buf,
             ostream: ostream,
             specified_numof_lines: nlines,
-            home_pos: Position { row: 1, col: 1 },
+            flushed_numof_lines: nlines,
             specified_pt: Point { x: 0, y: 0 },
             show_nonprinting: false,
             show_line_number: false,
@@ -78,9 +71,6 @@ impl<'a> Screen<'a> {
         };
         scr.sweep_window(nlines);
         scr.flush();
-        scr.home_pos = match cis::dsr().unwrap_or((1, 1)) {
-            (y, x) => Position { row: y, col: x },
-        };
         cis::cnl(nlines);
         scr
     }
@@ -99,7 +89,7 @@ impl<'a> Screen<'a> {
     }
 
     fn move_to_home_position(&self) {
-        cis::cup(self.home_pos.row, self.home_pos.col);
+        cis::cpl(self.flushed_numof_lines);
     }
 
     /// return (width, height)
@@ -116,7 +106,7 @@ impl<'a> Screen<'a> {
         })
     }
 
-    fn line_index(&self, wrows: usize) -> (usize, usize) {
+    fn lines_range(&self, wrows: usize) -> (usize, usize) {
         let lbrows = self.linebuf.len();
         let y = self.specified_pt.y;
         if wrows > lbrows {
@@ -160,18 +150,20 @@ impl<'a> Screen<'a> {
         if !self.dirty { return; }
 
         let (ww, wh) = self.window_size().unwrap();
-        let (begin, end) = self.line_index(wh);
+        let (begin, end) = self.lines_range(wh);
 
         self.move_to_home_position();
-        self.sweep_window(wh);
+        let nlines = self.flushed_numof_lines;
+        self.sweep_window(nlines);
 
         for (_i, ln) in self.linebuf[begin..end].iter().enumerate() {
             let dl = self.decorate(&ln);
             writeln!(self.ostream, "{}", dl);
         }
-
         self.flush();
         self.dirty = false;
+
+        self.flushed_numof_lines = end - begin;
     }
 
     fn scrcall_move_down(&mut self, n: usize) {
@@ -209,7 +201,7 @@ impl<'a> Screen<'a> {
 
     fn scrcall_move_right(&mut self, n: usize) {
         let (ww, wh) = self.window_size().unwrap();
-        let max_lnlen = self.max_line_length(self.line_index(wh));
+        let max_lnlen = self.max_line_length(self.lines_range(wh));
         let x = self.fit_offset(self.specified_pt.x + n, max_lnlen, ww);
         if x == self.specified_pt.x { return; }
         self.specified_pt.x = x;
@@ -248,7 +240,7 @@ impl<'a> Screen<'a> {
 
     fn scrcall_move_to_end_of_line(&mut self) {
         let (ww, wh) = self.window_size().unwrap();
-        let max_lnlen = self.max_line_length(self.line_index(wh));
+        let max_lnlen = self.max_line_length(self.lines_range(wh));
         let x = self.fit_offset(max_lnlen, max_lnlen, ww);
         if x == self.specified_pt.x { return; }
         self.specified_pt.x = x;
@@ -323,16 +315,12 @@ impl<'a> Screen<'a> {
 
     fn scrcall_set_numof_lines(&mut self, n: usize) {
         if n == 0 || n == self.specified_numof_lines { return; }
-        if n > self.specified_numof_lines {
-            // TODO: requre changing home_position?
-        }
         self.specified_numof_lines = n;
         self.dirty = true;
     }
 
     fn scrcall_quit(&mut self) {
-        let (_, height) = self.window_size().unwrap();
-        cis::cup(self.home_pos.row + height, self.home_pos.col);
+        let (_, wh) = self.window_size().unwrap();
         self.flush();
     }
 
@@ -422,6 +410,10 @@ mod tests {
         scr.call(ScreenCall::IncrementLines(2));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::DecrementLines(3));
+        thread::sleep(time::Duration::from_millis(500));
+        scr.call(ScreenCall::MoveDown(1));
+        thread::sleep(time::Duration::from_millis(500));
+        scr.call(ScreenCall::MoveDown(1));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::Quit);
         thread::sleep(time::Duration::from_millis(500));
