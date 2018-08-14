@@ -5,3 +5,4 @@ authors = ["ryochack <ryochack@gmail.com>"]
 
 [dependencies]
 termios = "0.3"
+termion = "1.5"
