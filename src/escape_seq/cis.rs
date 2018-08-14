@@ -15,7 +15,11 @@ fn _write(s: &str) {
 
 // not zero
 fn _nz(n: usize) -> usize {
-    if n == 0 { 1 } else { n }
+    if n == 0 {
+        1
+    } else {
+        n
+    }
 }
 
 /// CUU: cursor up
@@ -258,4 +262,3 @@ mod tests {
         teardown();
     }
 }
-
