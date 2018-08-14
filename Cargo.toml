@@ -1,0 +1,6 @@
+[package]
+name = "peep"
+version = "0.1.0"
+authors = ["ryochack <ryochack@gmail.com>"]
+
+[dependencies]
