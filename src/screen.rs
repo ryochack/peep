@@ -54,7 +54,7 @@ struct Screen<'a> {
 }
 
 impl<'a> Screen<'a> {
-    pub fn new(buf: &'a [String], ostream: &'a mut Write, nlines: usize) -> Screen<'a> {
+    pub fn new(buf: &'a [String], ostream: &'a mut Write, nlines: usize) -> Self {
         // TODO: validate arguments or use builder
         let mut scr = Screen {
             linebuf: buf,
