@@ -155,7 +155,7 @@ impl<'a> Screen<'a> {
 
         self.move_to_home_position();
         let nlines = self.flushed_numof_lines;
-        self.sweep_window(nlines+1);
+        self.sweep_window(nlines + 1);
 
         for (_i, ln) in self.linebuf[begin..end].iter().enumerate() {
             let dl = self.decorate(&ln);
