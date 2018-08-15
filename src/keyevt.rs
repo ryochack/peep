@@ -1,4 +1,9 @@
+extern crate termios;
+
 /// Key Event Handler
+use keybind;
+use escape_seq::{echo_off, echo_on};
+use std::io::Read;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum KeyOp {
@@ -31,3 +36,38 @@ pub enum KeyOp {
     Cancel,
     Quit,
 }
+
+pub struct KeyEventHandler<'a> {
+    istream: &'a mut Read,
+    parser: &'a mut keybind::KeyParser,
+    oldstat: Box<termios::Termios>,
+}
+
+impl<'a> Drop for KeyEventHandler<'a> {
+    fn drop(&mut self) {
+        echo_on(&*self.oldstat);
+    }
+}
+
+impl<'a> KeyEventHandler<'a> {
+    pub fn new(istream: &'a mut Read, parser: &'a mut keybind::KeyParser) -> Self {
+        KeyEventHandler {
+            istream: istream,
+            parser: parser,
+            oldstat: Box::new(echo_off()),
+        }
+    }
+
+    // blocking call
+    pub fn read(&mut self) -> KeyOp {
+        loop {
+            for b in self.istream.bytes().filter_map(|v| v.ok()) {
+                let v = self.parser.parse(b as char);
+                if v.is_some() {
+                    return v.unwrap();
+                }
+            }
+        }
+    }
+}
+
