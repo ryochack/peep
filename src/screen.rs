@@ -14,6 +14,7 @@ struct Point {
     y: u32,
 }
 
+#[derive(Debug)]
 pub enum ScreenCall<'a> {
     MoveDown(u32),
     MoveUp(u32),
@@ -125,12 +126,19 @@ impl<'a> Screen<'a> {
         }
     }
 
+    /// return max line length of specified lines
     fn max_line_length(&self, (begin, end): (usize, usize)) -> usize {
         // TODO: validation
         self.linebuf[begin..end]
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x))
+    }
+
+    /// return the end of y that is considered window size.
+    fn limit_bottom_y(&self) -> u32 {
+        let (_, wh) = self.window_size().unwrap();
+        self.linebuf.len() as u32 - wh
     }
 
     /// return the cursor offset that is considered window size and string length.
@@ -153,7 +161,7 @@ impl<'a> Screen<'a> {
         let (ww, _) = self.window_size().unwrap();
         let x = self.specified_pt.x as usize;
 
-        let (mut begin, mut end): (usize, usize) = (0, ww as usize);
+        let (mut begin, end): (usize, usize) = (0, ww as usize);
         let mut line = String::new();
 
         if self.show_line_number {
@@ -180,6 +188,7 @@ impl<'a> Screen<'a> {
             let dl = self.decorate(&ln, begin + i + 1);
             writeln!(self.ostream, "{}", dl);
         }
+
         write!(self.ostream, ":{}", self.message);
         self.flush();
         self.dirty = false;
@@ -188,8 +197,9 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_move_down(&mut self, n: u32) {
-        let y = if self.specified_pt.y + n >= self.linebuf.len() as u32 {
-            self.linebuf.len() as u32 - 1
+        let end_y = self.limit_bottom_y();
+        let y = if self.specified_pt.y + n > end_y {
+            end_y
         } else {
             self.specified_pt.y + n
         };
@@ -289,7 +299,7 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_move_to_bottom_of_lines(&mut self) {
-        let y = self.linebuf.len() as u32 - 1;
+        let y = self.limit_bottom_y();
         if self.specified_pt.y == y {
             return;
         }
