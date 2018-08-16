@@ -9,27 +9,18 @@ struct Flags {
     show_line_number: bool,
 }
 
-pub struct App<'a> {
+pub struct App {
     flags: Flags,
-    // for key scan
-    keystream: &'a mut Read,
-    // for buffer
-    bufinstream: &'a mut BufRead,
-    // for screen
-    outstream: &'a mut Write,
 }
 
-impl<'a> App<'a> {
-    pub fn new(keystream: &'a mut Read, bufinstream: &'a mut BufRead, outstream: &'a mut Write) -> Self {
+impl App {
+    pub fn new() -> Self {
         App {
             flags: Flags {
                 nlines: 5,
                 show_nonprinting: false,
                 show_line_number: false,
             },
-            keystream: keystream,
-            bufinstream: bufinstream,
-            outstream: outstream,
         }
     }
 
@@ -121,6 +112,7 @@ impl<'a> App<'a> {
             KeyOp::Cancel => {
                 scr.call(ScreenCall::Message(None));
                 scr.call(ScreenCall::HighLightWord(None));
+                scr.call(ScreenCall::Refresh);
             }
             KeyOp::Quit => {
                 scr.call(ScreenCall::Quit);
@@ -128,19 +120,19 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, keystream: &mut Read, bufinstream: &mut BufRead, outstream: &mut Write) {
         // read buffer from buffer-stream
         let mut buffer: Vec<String> = vec![];
-        for v in self.bufinstream.lines().map(|v| v.unwrap()) {
+        for v in bufinstream.lines().map(|v| v.unwrap()) {
             buffer.push(v);
         }
-        let mut scr = Screen::new(&buffer, self.outstream, self.flags.nlines);
+        let mut scr = Screen::new(&buffer, outstream, self.flags.nlines);
         scr.call(ScreenCall::ShowLineNumber(self.flags.show_line_number));
         scr.call(ScreenCall::ShowNonPrinting(self.flags.show_nonprinting));
         scr.call(ScreenCall::Refresh);
 
         let mut kb = keybind::default::KeyBind::new();
-        let mut keh = KeyEventHandler::new(self.keystream, &mut kb);
+        let mut keh = KeyEventHandler::new(keystream, &mut kb);
 
         loop {
             match keh.read() {
@@ -153,7 +145,6 @@ impl<'a> App<'a> {
                 None => {}
             }
         }
-
     }
 }
 

@@ -4,5 +4,6 @@ version = "0.1.0"
 authors = ["ryochack <ryochack@gmail.com>"]
 
 [dependencies]
+getopts = "0.2"
 termios = "0.3"
 termion = "1.5"
