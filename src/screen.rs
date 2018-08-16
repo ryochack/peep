@@ -75,7 +75,7 @@ impl<'a> Screen<'a> {
         };
         scr.sweep_window(nlines);
         scr.flush();
-        cis::cnl(nlines);
+        cis::cnl(&mut scr.ostream, nlines);
         scr
     }
 
@@ -85,15 +85,15 @@ impl<'a> Screen<'a> {
 
     fn sweep_window(&mut self, nlines: u32) {
         for _ in 0..nlines {
-            cis::el(2);
+            cis::el(&mut self.ostream, 2);
             writeln!(self.ostream).unwrap();
         }
-        // cis::el(2);
-        cis::cpl(nlines);
+        // cis::el(&mut self.ostream, 2);
+        cis::cpl(&mut self.ostream, nlines);
     }
 
-    fn move_to_home_position(&self) {
-        cis::cpl(self.flushed_numof_lines);
+    fn move_to_home_position(&mut self) {
+        cis::cpl(&mut self.ostream, self.flushed_numof_lines);
     }
 
     /// return (width, height)
@@ -399,7 +399,7 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_quit(&mut self) {
-        cis::el(2);
+        cis::el(&mut self.ostream, 2);
         writeln!(self.ostream);
         self.flush();
     }
@@ -466,7 +466,7 @@ mod tests {
 
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveDown(1));
-        scr.call(ScreenCall::Message(Some("this is debug message".to_owned())));
+        scr.call(ScreenCall::Message(Some("this is debug message")));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveDown(2));
         thread::sleep(time::Duration::from_millis(500));
@@ -475,12 +475,12 @@ mod tests {
         scr.call(ScreenCall::MoveRight(2));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveToEndOfLine);
-        scr.call(ScreenCall::Message("this message will be cleared soon.".to_owned()));
+        scr.call(ScreenCall::Message(Some("this message will be cleared soon.")));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(1));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(2));
-        scr.call(ScreenCall::Message("".to_owned()));
+        scr.call(ScreenCall::Message(None));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveToHeadOfLine);
         thread::sleep(time::Duration::from_millis(500));
