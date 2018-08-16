@@ -14,7 +14,7 @@ struct Point {
     y: u32,
 }
 
-pub enum ScreenCall {
+pub enum ScreenCall<'a> {
     MoveDown(u32),
     MoveUp(u32),
     MoveLeft(u32),
@@ -31,11 +31,13 @@ pub enum ScreenCall {
 
     ShowLineNumber(bool),
     ShowNonPrinting(bool),
-    HighLightWord(Option<String>),
+    HighLightWord(Option<&'a str>),
 
     IncrementLines(u32),
     DecrementLines(u32),
     SetNumOfLines(u32),
+    Message(Option<&'a str>),
+    Refresh,
     Quit,
 }
 
@@ -51,6 +53,7 @@ pub struct Screen<'a> {
     show_highlight: bool,
     highlight_word: String,
     dirty: bool,
+    message: String,
 }
 
 impl<'a> Screen<'a> {
@@ -67,6 +70,7 @@ impl<'a> Screen<'a> {
             show_highlight: false,
             highlight_word: "".to_owned(),
             dirty: true,
+            message: "".to_owned(),
         };
         scr.sweep_window(nlines);
         scr.flush();
@@ -162,7 +166,7 @@ impl<'a> Screen<'a> {
             let dl = self.decorate(&ln);
             writeln!(self.ostream, "{}", dl);
         }
-        write!(self.ostream, ":");
+        write!(self.ostream, ":{}", self.message);
         self.flush();
         self.dirty = false;
 
@@ -297,7 +301,7 @@ impl<'a> Screen<'a> {
             return;
         };
         self.show_line_number = b;
-        self.dirty = true;
+        // self.dirty = true;
     }
 
     fn scrcall_show_nonprinting(&mut self, b: bool) {
@@ -305,10 +309,10 @@ impl<'a> Screen<'a> {
             return;
         };
         self.show_nonprinting = b;
-        self.dirty = true;
+        // self.dirty = true;
     }
 
-    fn scrcall_highlight_word(&mut self, hlword: Option<String>) {
+    fn scrcall_highlight_word(&mut self, hlword: Option<&str>) {
         match hlword {
             Some(w) => {
                 if w.is_empty() {
@@ -322,7 +326,7 @@ impl<'a> Screen<'a> {
                         return;
                     }
                     self.show_highlight = true;
-                    self.highlight_word = w;
+                    self.highlight_word = w.to_owned();
                     self.dirty = true;
                 }
             }
@@ -354,6 +358,22 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
+    fn scrcall_message(&mut self, msg: Option<&str>) {
+        match msg {
+            Some(m) => {
+                self.message = m.to_owned();
+            }
+            None => {
+                self.message.clear();
+            }
+        }
+        self.dirty = true;
+    }
+
+    fn scrcall_refresh(&mut self) {
+        self.dirty = true;
+    }
+
     fn scrcall_quit(&mut self) {
         cis::el(2);
         writeln!(self.ostream);
@@ -381,6 +401,8 @@ impl<'a> Screen<'a> {
             ScreenCall::IncrementLines(n) => self.scrcall_increment_lines(n),
             ScreenCall::DecrementLines(n) => self.scrcall_decrement_lines(n),
             ScreenCall::SetNumOfLines(n) => self.scrcall_set_numof_lines(n),
+            ScreenCall::Message(msg) => self.scrcall_message(msg),
+            ScreenCall::Refresh => self.scrcall_refresh(),
             ScreenCall::Quit => self.scrcall_quit(),
         }
         self.refresh();
@@ -420,6 +442,7 @@ mod tests {
 
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveDown(1));
+        scr.call(ScreenCall::Message(Some("this is debug message".to_owned())));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveDown(2));
         thread::sleep(time::Duration::from_millis(500));
@@ -428,10 +451,12 @@ mod tests {
         scr.call(ScreenCall::MoveRight(2));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveToEndOfLine);
+        scr.call(ScreenCall::Message("this message will be cleared soon.".to_owned()));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(1));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveLeft(2));
+        scr.call(ScreenCall::Message("".to_owned()));
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::MoveToHeadOfLine);
         thread::sleep(time::Duration::from_millis(500));
@@ -451,5 +476,6 @@ mod tests {
         thread::sleep(time::Duration::from_millis(500));
         scr.call(ScreenCall::Quit);
         thread::sleep(time::Duration::from_millis(500));
+
     }
 }
