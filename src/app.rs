@@ -97,13 +97,17 @@ impl App {
             }
             KeyOp::SearchNext => {
                 // TODO: implementation
+                scr.call(ScreenCall::Message(None));
+                scr.call(ScreenCall::Refresh);
             }
             KeyOp::SearchPrev => {
                 // TODO: implementation
+                scr.call(ScreenCall::Message(None));
+                scr.call(ScreenCall::Refresh);
             }
             KeyOp::SearchIncremental(s) => {
                 // TODO: implementation
-                scr.call(ScreenCall::Message(Some(&s)));
+                scr.call(ScreenCall::Message(Some(&format!("/{}", s))));
                 scr.call(ScreenCall::HighLightWord(Some(&s)));
             }
             KeyOp::Message(s) => {

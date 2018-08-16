@@ -156,6 +156,62 @@ impl<'a> Screen<'a> {
         }
     }
 
+    fn highlight(raw: &str, hlword: &str, range: (usize, usize)) -> String {
+        let mut line = String::new();
+        let mut raw_i = range.0;
+
+        for m in raw.match_indices(hlword) {
+            let hl = (m.0, m.0 + m.1.len());
+
+            if hl.0 > range.1 {
+                // raw| .......xxxx.........
+                // win| |----|
+                // out| ......
+                line.push_str(raw.get(raw_i..range.1).unwrap_or("#"));
+                raw_i = range.1;
+                break;
+            } else if hl.1 < range.0 {
+                // raw| .......xxxx.........
+                // win|              |----|
+                // out|              ......
+                raw_i = range.0;
+                continue;
+            } else {
+                // raw| xxx.........
+                // win|  |-|
+                // out|  xx.
+
+                // raw| .......xxxx.........
+                // win|    |----|
+                // out|    ....xx
+
+                // raw| .......xxxx.........
+                // win|       |----|
+                // out|       .xxxx.
+
+                // raw| .......xxxx.........
+                // win|          |----|
+                // out|          xx....
+                if raw_i < hl.0 {
+                    line.push_str(raw.get(raw_i..hl.0).unwrap_or("#"));
+                }
+                line.push_str("\x1b[7m"); // hl on
+                let s = cmp::max(hl.0, range.0);
+                let e = cmp::min(hl.1, range.1);
+                line.push_str(raw.get(s..e).unwrap_or("#"));
+                line.push_str("\x1b[0m"); // hl off
+                raw_i = e;
+                if raw_i == range.1 {
+                    break;
+                }
+            }
+        }
+        if raw_i < range.1 {
+            line.push_str(raw.get(raw_i..range.1).unwrap_or("#"));
+        }
+        line
+    }
+
     fn decorate(&self, raw: &str, line_number: usize) -> String {
         // TODO: implement
         let (ww, _) = self.window_size().unwrap();
@@ -168,7 +224,16 @@ impl<'a> Screen<'a> {
             line.push_str(format!("{:>4} ", line_number).as_str());
             begin += 5;
         }
-        line.push_str(format!("{}", raw.get(x..cmp::min(raw.len(), x + (end - begin))).unwrap_or("")).as_str());
+
+        line.push_str(
+            if self.show_highlight && raw.contains(self.highlight_word.as_str()) {
+                Screen::highlight(raw, self.highlight_word.as_str(), (x, cmp::min(raw.len(), x + (end - begin))))
+            } else {
+                format!("{}", raw.get(x..cmp::min(raw.len(), x + (end - begin))).unwrap_or(""))
+            }
+            .as_str()
+        );
+
         line
     }
 
