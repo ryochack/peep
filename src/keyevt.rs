@@ -58,16 +58,14 @@ impl<'a> KeyEventHandler<'a> {
         }
     }
 
-    // blocking call
-    pub fn read(&mut self) -> KeyOp {
-        loop {
-            for b in self.istream.bytes().filter_map(|v| v.ok()) {
-                let v = self.parser.parse(b as char);
-                if v.is_some() {
-                    return v.unwrap();
-                }
+    pub fn read(&mut self) -> Option<KeyOp> {
+        for b in self.istream.bytes().filter_map(|v| v.ok()) {
+            let v = self.parser.parse(b as char);
+            if v.is_some() {
+                return v;
             }
         }
+        None
     }
 }
 
