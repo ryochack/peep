@@ -114,8 +114,8 @@ pub mod default {
                     self.wip_keys.push(c);
                     Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
                 }
-                '\x08' => {
-                    // BackSpace
+                '\x08' | '\x7f' => {
+                    // BackSpace, Delete
                     self.wip_keys.pop();
                     Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
                 }
