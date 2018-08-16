@@ -109,6 +109,7 @@ impl<'a> Screen<'a> {
         })
     }
 
+    /// return range of visible lines
     fn lines_range(&self, wrows: u32) -> (usize, usize) {
         let wr = wrows as usize;
         let lbrows = self.linebuf.len();
@@ -132,22 +133,35 @@ impl<'a> Screen<'a> {
             .fold(0, |acc, x| cmp::max(acc, x))
     }
 
+    /// return the cursor offset that is considered window size and string length.
     fn fit_offset(&self, offset: u32, lnlen: u32, winwidth: u32) -> u32 {
-        if winwidth >= lnlen {
+        let margin_right = 8;
+        let mrgined_lnlen = lnlen + margin_right;
+
+        if winwidth >= mrgined_lnlen {
             0
-        } else if offset + winwidth <= lnlen {
+        } else if offset + winwidth <= mrgined_lnlen {
             offset
         } else {
             // offset + winwidth > lnlen
-            lnlen - winwidth
+            mrgined_lnlen - winwidth
         }
     }
 
-    fn decorate(&self, raw: &str) -> String {
+    fn decorate(&self, raw: &str, line_number: usize) -> String {
         // TODO: implement
         let (ww, _) = self.window_size().unwrap();
         let x = self.specified_pt.x as usize;
-        format!("{}", raw.get(x..cmp::min(raw.len(), x + ww as usize)).unwrap_or(""))
+
+        let (mut begin, mut end): (usize, usize) = (0, ww as usize);
+        let mut line = String::new();
+
+        if self.show_line_number {
+            line.push_str(format!("{:>4} ", line_number).as_str());
+            begin += 5;
+        }
+        line.push_str(format!("{}", raw.get(x..cmp::min(raw.len(), x + (end - begin))).unwrap_or("")).as_str());
+        line
     }
 
     fn refresh(&mut self) {
@@ -162,8 +176,8 @@ impl<'a> Screen<'a> {
         let nlines = self.flushed_numof_lines;
         self.sweep_window(nlines + 1);
 
-        for (_i, ln) in self.linebuf[begin..end].iter().enumerate() {
-            let dl = self.decorate(&ln);
+        for (i, ln) in self.linebuf[begin..end].iter().enumerate() {
+            let dl = self.decorate(&ln, begin + i + 1);
             writeln!(self.ostream, "{}", dl);
         }
         write!(self.ostream, ":{}", self.message);
