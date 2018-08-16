@@ -10,40 +10,40 @@ use std::io::{self, Write};
 // start point is (0, 0)
 #[derive(Clone, Copy)]
 struct Point {
-    x: usize,
-    y: usize,
+    x: u32,
+    y: u32,
 }
 
 pub enum ScreenCall {
-    MoveDown(usize),
-    MoveUp(usize),
-    MoveLeft(usize),
-    MoveRight(usize),
-    MoveDownHalfPages(usize),
-    MoveUpHalfPages(usize),
-    MoveDownPages(usize),
-    MoveUpPages(usize),
+    MoveDown(u32),
+    MoveUp(u32),
+    MoveLeft(u32),
+    MoveRight(u32),
+    MoveDownHalfPages(u32),
+    MoveUpHalfPages(u32),
+    MoveDownPages(u32),
+    MoveUpPages(u32),
     MoveToHeadOfLine,
     MoveToEndOfLine,
     MoveToTopOfLines,
     MoveToBottomOfLines,
-    MoveToLineNumber(usize),
+    MoveToLineNumber(u32),
 
     ShowLineNumber(bool),
     ShowNonPrinting(bool),
     HighLightWord(Option<String>),
 
-    IncrementLines(usize),
-    DecrementLines(usize),
-    SetNumOfLines(usize),
+    IncrementLines(u32),
+    DecrementLines(u32),
+    SetNumOfLines(u32),
     Quit,
 }
 
-struct Screen<'a> {
+pub struct Screen<'a> {
     linebuf: &'a [String],
     ostream: &'a mut Write,
-    specified_numof_lines: usize,
-    flushed_numof_lines: usize,
+    specified_numof_lines: u32,
+    flushed_numof_lines: u32,
     specified_pt: Point, // buffer point
 
     show_nonprinting: bool,
@@ -54,7 +54,7 @@ struct Screen<'a> {
 }
 
 impl<'a> Screen<'a> {
-    pub fn new(buf: &'a [String], ostream: &'a mut Write, nlines: usize) -> Self {
+    pub fn new(buf: &'a [String], ostream: &'a mut Write, nlines: u32) -> Self {
         // TODO: validate arguments or use builder
         let mut scr = Screen {
             linebuf: buf,
@@ -78,7 +78,7 @@ impl<'a> Screen<'a> {
         self.ostream.flush().unwrap();
     }
 
-    fn sweep_window(&mut self, nlines: usize) {
+    fn sweep_window(&mut self, nlines: u32) {
         for _ in 0..nlines {
             cis::el(2);
             writeln!(self.ostream).unwrap();
@@ -92,12 +92,12 @@ impl<'a> Screen<'a> {
     }
 
     /// return (width, height)
-    fn window_size(&self) -> io::Result<(usize, usize)> {
+    fn window_size(&self) -> io::Result<(u32, u32)> {
         terminal_size().map(|(w, h)| {
             (
-                w as usize,
-                if self.specified_numof_lines > h as usize {
-                    h as usize
+                w as u32,
+                if self.specified_numof_lines > h as u32 {
+                    h as u32
                 } else {
                     self.specified_numof_lines
                 },
@@ -105,17 +105,18 @@ impl<'a> Screen<'a> {
         })
     }
 
-    fn lines_range(&self, wrows: usize) -> (usize, usize) {
+    fn lines_range(&self, wrows: u32) -> (usize, usize) {
+        let wr = wrows as usize;
         let lbrows = self.linebuf.len();
-        let y = self.specified_pt.y;
-        if wrows > lbrows {
+        let y = self.specified_pt.y as usize;
+        if wr > lbrows {
             // buflines length is less than win-rows.
             (0, lbrows)
-        } else if y + wrows >= lbrows {
+        } else if y + wr >= lbrows {
             // buflines length is not enough at current pos.row. scroll down to fit.
-            (lbrows - wrows, lbrows)
+            (lbrows - wr, lbrows)
         } else {
-            (y, y + wrows)
+            (y, y + wr)
         }
     }
 
@@ -127,7 +128,7 @@ impl<'a> Screen<'a> {
             .fold(0, |acc, x| cmp::max(acc, x))
     }
 
-    fn fit_offset(&self, offset: usize, lnlen: usize, winwidth: usize) -> usize {
+    fn fit_offset(&self, offset: u32, lnlen: u32, winwidth: u32) -> u32 {
         if winwidth >= lnlen {
             0
         } else if offset + winwidth <= lnlen {
@@ -141,8 +142,8 @@ impl<'a> Screen<'a> {
     fn decorate(&self, raw: &str) -> String {
         // TODO: implement
         let (ww, _) = self.window_size().unwrap();
-        let x = self.specified_pt.x;
-        format!("{}", raw.get(x..cmp::min(raw.len(), x + ww)).unwrap_or(""))
+        let x = self.specified_pt.x as usize;
+        format!("{}", raw.get(x..cmp::min(raw.len(), x + ww as usize)).unwrap_or(""))
     }
 
     fn refresh(&mut self) {
@@ -165,12 +166,12 @@ impl<'a> Screen<'a> {
         self.flush();
         self.dirty = false;
 
-        self.flushed_numof_lines = end - begin;
+        self.flushed_numof_lines = (end - begin) as u32;
     }
 
-    fn scrcall_move_down(&mut self, n: usize) {
-        let y = if self.specified_pt.y + n >= self.linebuf.len() {
-            self.linebuf.len() - 1
+    fn scrcall_move_down(&mut self, n: u32) {
+        let y = if self.specified_pt.y + n >= self.linebuf.len() as u32 {
+            self.linebuf.len() as u32 - 1
         } else {
             self.specified_pt.y + n
         };
@@ -181,7 +182,7 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
-    fn scrcall_move_up(&mut self, n: usize) {
+    fn scrcall_move_up(&mut self, n: u32) {
         let y = if self.specified_pt.y <= n {
             0
         } else {
@@ -194,7 +195,7 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
-    fn scrcall_move_left(&mut self, n: usize) {
+    fn scrcall_move_left(&mut self, n: u32) {
         let x = if self.specified_pt.x <= n {
             0
         } else {
@@ -207,9 +208,9 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
-    fn scrcall_move_right(&mut self, n: usize) {
+    fn scrcall_move_right(&mut self, n: u32) {
         let (ww, wh) = self.window_size().unwrap();
-        let max_lnlen = self.max_line_length(self.lines_range(wh));
+        let max_lnlen = self.max_line_length(self.lines_range(wh)) as u32;
         let x = self.fit_offset(self.specified_pt.x + n, max_lnlen, ww);
         if x == self.specified_pt.x {
             return;
@@ -218,25 +219,25 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
-    fn scrcall_move_down_halfpages(&mut self, n: usize) {
+    fn scrcall_move_down_halfpages(&mut self, n: u32) {
         let (_, wh) = self.window_size().unwrap();
         let hpages = (wh * n) / 2;
         self.scrcall_move_down(hpages);
     }
 
-    fn scrcall_move_up_halfpages(&mut self, n: usize) {
+    fn scrcall_move_up_halfpages(&mut self, n: u32) {
         let (_, wh) = self.window_size().unwrap();
         let hpages = (wh * n) / 2;
         self.scrcall_move_up(hpages);
     }
 
-    fn scrcall_move_down_pages(&mut self, n: usize) {
+    fn scrcall_move_down_pages(&mut self, n: u32) {
         let (_, wh) = self.window_size().unwrap();
         let pages = wh * n;
         self.scrcall_move_down(pages);
     }
 
-    fn scrcall_move_up_pages(&mut self, n: usize) {
+    fn scrcall_move_up_pages(&mut self, n: u32) {
         let (_, wh) = self.window_size().unwrap();
         let pages = wh * n;
         self.scrcall_move_up(pages);
@@ -252,7 +253,7 @@ impl<'a> Screen<'a> {
 
     fn scrcall_move_to_end_of_line(&mut self) {
         let (ww, wh) = self.window_size().unwrap();
-        let max_lnlen = self.max_line_length(self.lines_range(wh));
+        let max_lnlen = self.max_line_length(self.lines_range(wh)) as u32;
         let x = self.fit_offset(max_lnlen, max_lnlen, ww);
         if x == self.specified_pt.x {
             return;
@@ -270,7 +271,7 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_move_to_bottom_of_lines(&mut self) {
-        let y = self.linebuf.len() - 1;
+        let y = self.linebuf.len() as u32 - 1;
         if self.specified_pt.y == y {
             return;
         }
@@ -278,9 +279,9 @@ impl<'a> Screen<'a> {
         self.dirty = true;
     }
 
-    fn scrcall_move_to_line_number(&mut self, n: usize) {
-        let y = if n >= self.linebuf.len() {
-            self.linebuf.len() - 1
+    fn scrcall_move_to_line_number(&mut self, n: u32) {
+        let y = if n >= self.linebuf.len() as u32 {
+            self.linebuf.len() as u32 - 1
         } else {
             n
         };
@@ -332,12 +333,12 @@ impl<'a> Screen<'a> {
         }
     }
 
-    fn scrcall_increment_lines(&mut self, n: usize) {
+    fn scrcall_increment_lines(&mut self, n: u32) {
         let nl = self.specified_numof_lines + n;
         self.scrcall_set_numof_lines(nl);
     }
 
-    fn scrcall_decrement_lines(&mut self, n: usize) {
+    fn scrcall_decrement_lines(&mut self, n: u32) {
         let nl = self.specified_numof_lines - n;
         if nl <= 0 {
             return;
@@ -345,7 +346,7 @@ impl<'a> Screen<'a> {
         self.scrcall_set_numof_lines(nl);
     }
 
-    fn scrcall_set_numof_lines(&mut self, n: usize) {
+    fn scrcall_set_numof_lines(&mut self, n: u32) {
         if n == 0 || n == self.specified_numof_lines {
             return;
         }
@@ -395,7 +396,7 @@ mod tests {
     fn teardown() {}
 
     #[test]
-    fn test_move() {
+    fn test_screen() {
         use std::io;
         use std::{thread, time};
 

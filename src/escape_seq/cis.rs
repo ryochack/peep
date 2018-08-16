@@ -13,8 +13,8 @@ fn _write(s: &str) {
     write!(io::stdout(), "{}", s).unwrap();
 }
 
-// not zero
-fn _nz(n: usize) -> usize {
+// avoid zero
+fn _nz(n: u32) -> u32 {
     if n == 0 {
         1
     } else {
@@ -23,36 +23,36 @@ fn _nz(n: usize) -> usize {
 }
 
 /// CUU: cursor up
-pub fn cuu(n: usize) {
+pub fn cuu(n: u32) {
     _write(&format!("\x1b[{}A", _nz(n)));
 }
 /// CUD: cursor down
-pub fn cud(n: usize) {
+pub fn cud(n: u32) {
     _write(&format!("\x1b[{}B", _nz(n)));
 }
 /// CUF: cursor forward
-pub fn cuf(n: usize) {
+pub fn cuf(n: u32) {
     _write(&format!("\x1b[{}C", _nz(n)));
 }
 /// CUB: cursor back
-pub fn cub(n: usize) {
+pub fn cub(n: u32) {
     _write(&format!("\x1b[{}D", _nz(n)));
 }
 /// CNL: cursor next line
-pub fn cnl(n: usize) {
+pub fn cnl(n: u32) {
     _write(&format!("\x1b[{}E", _nz(n)));
 }
 /// CPL: cursor previous line
-pub fn cpl(n: usize) {
+pub fn cpl(n: u32) {
     _write(&format!("\x1b[{}F", _nz(n)));
 }
 /// CHA: cursor horizontal absolute
-pub fn cha(n: usize) {
+pub fn cha(n: u32) {
     _write(&format!("\x1b[{}G", _nz(n)));
 }
 
 /// CUP: cursor position
-pub fn cup(row: usize, col: usize) {
+pub fn cup(row: u32, col: u32) {
     _write(&format!("\x1b[{};{}H", _nz(row), _nz(col)));
 }
 /// ED: erase in display
@@ -60,7 +60,7 @@ pub fn cup(row: usize, col: usize) {
 /// If n is 1, clear from cursor to beginning of the screen.
 /// If n {\displaystyle n} n is 2, clear entire screen (and moves cursor to upper left on DOS ANSI.SYS).
 /// If n {\displaystyle n} n is 3, clear entire screen and delete all lines saved in the scrollback buffer (this feature was added for xterm and is supported by other terminal applications).
-pub fn ed(n: usize) {
+pub fn ed(n: u32) {
     if n <= 3 {
         _write(&format!("\x1b[{}J", n));
     }
@@ -69,40 +69,40 @@ pub fn ed(n: usize) {
 /// If n is 0 (or missing), clear from cursor to the end of the line.
 /// If n is 1, clear from cursor to beginning of the line.
 /// If n is 2, clear entire line. Cursor position does not change.
-pub fn el(n: usize) {
+pub fn el(n: u32) {
     if n <= 2 {
         _write(&format!("\x1b[{}K", n));
     }
 }
 /// SU: scroll up
-pub fn su(n: usize) {
+pub fn su(n: u32) {
     _write(&format!("\x1b[{}S", _nz(n)));
 }
 /// SD: scroll down
-pub fn sd(n: usize) {
+pub fn sd(n: u32) {
     _write(&format!("\x1b[{}T", _nz(n)));
 }
 /// SGR: select graphic rendition
 /// SGR parameters: https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
-pub fn sgr(n: usize) {
+pub fn sgr(n: u32) {
     if n <= 107 {
         _write(&format!("\x1b[{}m", n));
     }
 }
 /// DSR: device status report
 /// return (row, col)
-pub fn dsr() -> Option<(usize, usize)> {
+pub fn dsr() -> Option<(u32, u32)> {
     let oldstat: Box<termios::Termios> = Box::new(echo_off());
     _write(&format!("\x1b[6n"));
     _flush();
-    let (mut row, mut col, mut tmp) = (0usize, 0usize, 0usize);
+    let (mut row, mut col, mut tmp) = (0u32, 0u32, 0u32);
     let s = io::stdin();
     // => "[${row};${col}R"
     for b in s.lock().bytes().filter_map(|v| v.ok()) {
         match b {
             // '0' ... '9'
             0x30...0x39 => {
-                tmp = tmp * 10 + (b - 0x30) as usize;
+                tmp = tmp * 10 + (b - 0x30) as u32;
             }
             // ';'
             0x3b => {
@@ -130,11 +130,11 @@ pub fn rcp() {
 }
 /// SM: set mode
 /// mode: http://ttssh2.osdn.jp/manual/ja/about/ctrlseq.html#mode
-pub fn sm(n: usize) {
+pub fn sm(n: u32) {
     _write(&format!("\x1b[{}h", n));
 }
 /// RM: reset mode
-pub fn rm(n: usize) {
+pub fn rm(n: u32) {
     _write(&format!("\x1b[{}l", n));
 }
 
