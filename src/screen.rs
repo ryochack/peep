@@ -1,11 +1,9 @@
 #![allow(dead_code)]
 /// Screen
-extern crate termion;
-
-use self::termion::terminal_size;
-use escape_seq::csi;
+use termion::{clear, style, terminal_size};
 use std::cmp;
 use std::io::{self, Write};
+use csi::cursor_ext;
 
 // start point is (0, 0)
 #[derive(Clone, Copy)]
@@ -75,7 +73,7 @@ impl<'a> Screen<'a> {
         };
         scr.sweep_window(nlines);
         scr.flush();
-        csi::cnl(&mut scr.ostream, nlines);
+        write!(scr.ostream, "{}", cursor_ext::NextLine(nlines as u16));
         scr
     }
 
@@ -85,15 +83,14 @@ impl<'a> Screen<'a> {
 
     fn sweep_window(&mut self, nlines: u32) {
         for _ in 0..nlines {
-            csi::el(&mut self.ostream, 2);
+            write!(self.ostream, "{}", clear::CurrentLine);
             writeln!(self.ostream).unwrap();
         }
-        // csi::el(&mut self.ostream, 2);
-        csi::cpl(&mut self.ostream, nlines);
+        write!(self.ostream, "{}", cursor_ext::PreviousLine(nlines as u16));
     }
 
     fn move_to_home_position(&mut self) {
-        csi::cpl(&mut self.ostream, self.flushed_numof_lines);
+        write!(self.ostream, "{}", cursor_ext::PreviousLine(self.flushed_numof_lines as u16));
     }
 
     /// return (width, height)
@@ -195,11 +192,11 @@ impl<'a> Screen<'a> {
                 if raw_i < hl.0 {
                     line.push_str(raw.get(raw_i..hl.0).unwrap_or("#"));
                 }
-                line.push_str("\x1b[7m"); // hl on
+                line.push_str(format!("{}", style::Invert).as_str());
                 let s = cmp::max(hl.0, range.0);
                 let e = cmp::min(hl.1, range.1);
                 line.push_str(raw.get(s..e).unwrap_or("#"));
-                line.push_str("\x1b[0m"); // hl off
+                line.push_str(format!("{}", style::Reset).as_str());
                 raw_i = e;
                 if raw_i == range.1 {
                     break;
@@ -213,7 +210,6 @@ impl<'a> Screen<'a> {
     }
 
     fn decorate(&self, raw: &str, line_number: usize) -> String {
-        // TODO: implement
         let (ww, _) = self.window_size().unwrap();
         let x = self.specified_pt.x as usize;
 
@@ -464,7 +460,7 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_quit(&mut self) {
-        csi::el(&mut self.ostream, 2);
+        write!(self.ostream, "{}", clear::CurrentLine);
         writeln!(self.ostream);
         self.flush();
     }

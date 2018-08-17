@@ -130,6 +130,7 @@ impl App {
         for v in bufinstream.lines().map(|v| v.unwrap()) {
             buffer.push(v);
         }
+
         let mut scr = Screen::new(&buffer, outstream, self.flags.nlines);
         scr.call(ScreenCall::ShowLineNumber(self.flags.show_line_number));
         scr.call(ScreenCall::ShowNonPrinting(self.flags.show_nonprinting));

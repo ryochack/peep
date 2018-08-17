@@ -2,7 +2,7 @@ extern crate termios;
 
 /// Key Event Handler
 use keybind;
-use escape_seq::{echo_off, echo_on};
+use ttyecho;
 use std::io::Read;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,7 +45,7 @@ pub struct KeyEventHandler<'a> {
 
 impl<'a> Drop for KeyEventHandler<'a> {
     fn drop(&mut self) {
-        echo_on(&*self.oldstat);
+        ttyecho::on(&*self.oldstat);
     }
 }
 
@@ -54,7 +54,7 @@ impl<'a> KeyEventHandler<'a> {
         KeyEventHandler {
             istream: istream,
             parser: parser,
-            oldstat: Box::new(echo_off()),
+            oldstat: Box::new(ttyecho::off()),
         }
     }
 

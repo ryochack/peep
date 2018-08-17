@@ -1,9 +1,7 @@
-extern crate termios;
-
-pub mod csi;
+use termios;
 
 /// echo off. Return old termios state.
-pub fn echo_off() -> termios::Termios {
+pub fn off() -> termios::Termios {
     let oldstat = termios::Termios::from_fd(0).unwrap();
     let mut termstat = oldstat;
     termstat.c_lflag &= !(termios::ICANON | termios::ECHO);
@@ -12,6 +10,7 @@ pub fn echo_off() -> termios::Termios {
 }
 
 /// echo on. Pass old termios state.
-pub fn echo_on(termstat: &termios::Termios) {
+pub fn on(termstat: &termios::Termios) {
     termios::tcsetattr(0, termios::TCSANOW, &termstat).unwrap();
 }
+
