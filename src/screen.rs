@@ -3,7 +3,7 @@
 extern crate termion;
 
 use self::termion::terminal_size;
-use escape_seq::cis;
+use escape_seq::csi;
 use std::cmp;
 use std::io::{self, Write};
 
@@ -75,7 +75,7 @@ impl<'a> Screen<'a> {
         };
         scr.sweep_window(nlines);
         scr.flush();
-        cis::cnl(&mut scr.ostream, nlines);
+        csi::cnl(&mut scr.ostream, nlines);
         scr
     }
 
@@ -85,15 +85,15 @@ impl<'a> Screen<'a> {
 
     fn sweep_window(&mut self, nlines: u32) {
         for _ in 0..nlines {
-            cis::el(&mut self.ostream, 2);
+            csi::el(&mut self.ostream, 2);
             writeln!(self.ostream).unwrap();
         }
-        // cis::el(&mut self.ostream, 2);
-        cis::cpl(&mut self.ostream, nlines);
+        // csi::el(&mut self.ostream, 2);
+        csi::cpl(&mut self.ostream, nlines);
     }
 
     fn move_to_home_position(&mut self) {
-        cis::cpl(&mut self.ostream, self.flushed_numof_lines);
+        csi::cpl(&mut self.ostream, self.flushed_numof_lines);
     }
 
     /// return (width, height)
@@ -464,7 +464,7 @@ impl<'a> Screen<'a> {
     }
 
     fn scrcall_quit(&mut self) {
-        cis::el(&mut self.ostream, 2);
+        csi::el(&mut self.ostream, 2);
         writeln!(self.ostream);
         self.flush();
     }

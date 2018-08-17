@@ -58,6 +58,12 @@ pub fn cup(w: &mut Write, row: u32, col: u32) {
     write!(w, "{}", format!("\x1b[{};{}H", _nz(row), _nz(col)));
 }
 
+pub enum EdClear {
+    FromCurToEos = 0,
+    FromCurToBos = 1,
+    EntireScreen = 2,
+    EntireScreenAndDeleteAllScrollBuffer = 3,
+}
 /// ED: erase in display
 /// If n is 0 (or missing), clear from cursor to end of screen.
 /// If n is 1, clear from cursor to beginning of the screen.
@@ -69,6 +75,11 @@ pub fn ed(w: &mut Write, n: u32) {
     }
 }
 
+pub enum ElClear {
+    FromCurToEol = 0,
+    FromCurToBol = 1,
+    EntireLine = 2,
+}
 /// EL: erase in line
 /// If n is 0 (or missing), clear from cursor to the end of the line.
 /// If n is 1, clear from cursor to beginning of the line.
@@ -89,12 +100,107 @@ pub fn sd(w: &mut Write, n: u32) {
     write!(w, "{}", format!("\x1b[{}T", _nz(n)));
 }
 
+pub enum SgrCode {
+    Normal = 0,
+    Bold = 1,
+    Faint = 2,
+    Italic = 3,
+    Underline = 4,
+    SlowBlink = 5,
+    RapidBlink = 6,
+    Inverse = 7,
+    Invisible = 8,
+    Strikethrough = 9,
+    PrimaryFont = 10,
+    AltFont1 = 11,
+    AltFont2 = 12,
+    AltFont3 = 13,
+    AltFont4 = 14,
+    AltFont5 = 15,
+    AltFont6 = 16,
+    AltFont7 = 17,
+    AltFont8 = 18,
+    AltFont9 = 19,
+    DoubleUnderline = 21,
+    BoldFaintOff = 22,
+    ItalicOff = 23,
+    UnderlineOff = 24,
+    Steady = 25,   // not blinking
+    Positive = 27, // not inverse
+    Visible = 28,
+    StrikethroughOff = 29,
+    FgColorBlack = 30,
+    FgColorRed = 31,
+    FgColorGreen = 32,
+    FgColorYellow = 33,
+    FgColorBlue = 34,
+    FgColorMagenta = 35,
+    FgColorCyan = 36,
+    FgColorWhite = 37,
+
+    // FgColor8bit(u8),
+    // FgColor24bit((u8, u8, u8)),
+    FgColorDefault = 39,
+    BgColorBlack = 40,
+    BgColorRed = 41,
+    BgColorGreen = 42,
+    BgColorYellow = 43,
+    BgColorBlue = 44,
+    BgColorMagenta = 45,
+    BgColorCyan = 46,
+    BgColorWhite = 47,
+    // BgColor8bit(u8),
+    // BgColor24bit((u8, u8, u8)),
+    BgColorDefault = 49,
+    Frame = 51,
+    Encircle = 52,
+    Overline = 53,
+    FrameEncircleOff = 54,
+    OverlineOff = 55,
+    RightSideLine = 60,
+    RightSideDoublLine = 61,
+    LeftSideLine = 62,
+    LeftSideDoublLine = 63,
+    DoubleStrikethrough = 64,
+    LineOff = 65,
+    FgColorBrightBlack = 90,
+    FgColorBrightRed = 91,
+    FgColorBrightGreen = 92,
+    FgColorBrightYellow = 93,
+    FgColorBrightBlue = 94,
+    FgColorBrightMagenta = 95,
+    FgColorBrightCyan = 96,
+    FgColorBrightWhite = 97,
+    BgColorBrightBlack = 100,
+    BgColorBrightRed = 101,
+    BgColorBrightGreen = 102,
+    BgColorBrightYellow = 103,
+    BgColorBrightBlue = 104,
+    BgColorBrightMagenta = 105,
+    BgColorBrightCyan = 106,
+    BgColorBrightWhite = 107,
+}
 /// SGR: select graphic rendition
 /// SGR parameters: https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
-pub fn sgr(w: &mut Write, n: u32) {
-    if n <= 107 {
-        write!(w, "{}", format!("\x1b[{}m", n));
-    }
+pub fn sgr(w: &mut Write, c: SgrCode) {
+    write!(w, "\x1b[{}m", (c as i32));
+}
+
+pub enum SgrColor {
+    FgColor8bit(u8),
+    FgColor24bit((u8, u8, u8)),
+    BgColor8bit(u8),
+    BgColor24bit((u8, u8, u8)),
+}
+pub fn sgr_color(w: &mut Write, c: SgrColor) {
+    write!(w, "\x1b[{}m",
+        match c {
+            SgrColor::FgColor8bit(color) => format!("38;5;{}", color),
+            SgrColor::FgColor24bit((r, g, b)) => format!("38;2;{};{};{}", r, g, b),
+            SgrColor::BgColor8bit(color) => format!("48;5;{}", color),
+            SgrColor::BgColor24bit((r, g, b)) => format!("48;2;{};{};{}", r, g, b),
+        }
+    );
 }
 
 /// DSR: device status report
@@ -150,6 +256,14 @@ pub fn rm(w: &mut Write, n: u32) {
     write!(w, "{}", format!("\x1b[{}l", n));
 }
 
+pub enum DecscusrStyle {
+    BlinkingBlock = 1,
+    SteadyBlock = 2,
+    BlinkingUnderline = 3,
+    SteadyUnderline = 4,
+    BlinkingBar = 5,
+    SteadyBar = 6,
+}
 /// DECSCUSR: set cursor style
 /// 0,1: blinking block
 /// 2: steady block
@@ -314,78 +428,109 @@ mod tests {
         let w = &mut w;
         // setup(w);
 
-        sgr(w, 0);  // reset
+        sgr(w, SgrCode::Normal); // reset
         write!(w, "0");
 
-        sgr(w, 1);  // bold on
+        sgr(w, SgrCode::Bold); // bold on
         write!(w, "1");
-        sgr(w, 22); // bold off
+        sgr(w, SgrCode::BoldFaintOff); // bold off
 
-        sgr(w, 4);  // underline on
+        sgr(w, SgrCode::Faint); // faint on
+        write!(w, "2");
+        sgr(w, SgrCode::BoldFaintOff); // faint off
+
+        sgr(w, SgrCode::Italic); // italic on
+        write!(w, "3");
+        sgr(w, SgrCode::ItalicOff); // italic off
+
+        sgr(w, SgrCode::Underline); // underline on
         write!(w, "4");
-        sgr(w, 24); // underline off
+        sgr(w, SgrCode::UnderlineOff); // underline off
 
-        sgr(w, 5);  // blink on
+        sgr(w, SgrCode::SlowBlink); // blink on
         write!(w, "5");
-        sgr(w, 25); // blink off
+        sgr(w, SgrCode::Steady); // blink off
 
-        sgr(w, 7);  // reverse on
+        sgr(w, SgrCode::RapidBlink); // blink on
+        write!(w, "6");
+        sgr(w, SgrCode::Steady); // blink off
+
+        sgr(w, SgrCode::Inverse); // inverse on
         write!(w, "7");
-        sgr(w, 27); // reverse off
+        sgr(w, SgrCode::Positive); // inverse off
 
-        sgr(w, 30);  // fg: black
-        sgr(w, 41);  // bg: red
+        sgr(w, SgrCode::Strikethrough); // strikethrough on
+        write!(w, "9");
+        sgr(w, SgrCode::StrikethroughOff); // strikethrough off
+
+        sgr(w, SgrCode::FgColorBlack); // fg: black
+        sgr(w, SgrCode::BgColorRed); // bg: red
         write!(w, "30");
-        sgr(w, 49);  // bg: reset
-        sgr(w, 31);  // fg: red
+        sgr(w, SgrCode::BgColorDefault); // bg: default
+        sgr(w, SgrCode::FgColorRed); // fg: red
         write!(w, "31");
-        sgr(w, 32);  // fg: green
+        sgr(w, SgrCode::FgColorGreen); // fg: green
         write!(w, "32");
-        sgr(w, 33);  // fg: yellow
+        sgr(w, SgrCode::FgColorYellow); // fg: yellow
         write!(w, "33");
-        sgr(w, 34);  // fg: blue
+        sgr(w, SgrCode::FgColorBlue); // fg: blue
         write!(w, "34");
-        sgr(w, 35);  // fg: purple
+        sgr(w, SgrCode::FgColorMagenta); // fg: magenta
         write!(w, "35");
-        sgr(w, 36);  // fg: cyan
+        sgr(w, SgrCode::FgColorCyan); // fg: cyan
         write!(w, "36");
-        sgr(w, 37);  // fg: white
+        sgr(w, SgrCode::FgColorWhite); // fg: white
         write!(w, "37");
-        sgr(w, 39);  // fg: reset
+        sgr(w, SgrCode::FgColorDefault); // fg: default
 
-        sgr(w, 40);  // bg: black
-        sgr(w, 31);  // fg: red
+        sgr(w, SgrCode::BgColorBlack); // bg: black
         write!(w, "40");
-        sgr(w, 39);  // fg: reset
-        sgr(w, 41);  // bg: red
+        sgr(w, SgrCode::BgColorRed); // bg: red
         write!(w, "41");
-        sgr(w, 42);  // bg: green
+        sgr(w, SgrCode::BgColorGreen); // bg: green
         write!(w, "42");
-        sgr(w, 43);  // bg: yellow
+        sgr(w, SgrCode::BgColorYellow); // bg: yellow
         write!(w, "43");
-        sgr(w, 44);  // bg: blue
+        sgr(w, SgrCode::BgColorBlue); // bg: blue
         write!(w, "44");
-        sgr(w, 45);  // bg: purple
+        sgr(w, SgrCode::BgColorMagenta); // bg: magenta
         write!(w, "45");
-        sgr(w, 46);  // bg: cyan
+        sgr(w, SgrCode::BgColorCyan); // bg: cyan
         write!(w, "46");
-        sgr(w, 47);  // bg: white
+        sgr(w, SgrCode::FgColorRed); // fg: red
+        sgr(w, SgrCode::BgColorWhite); // bg: white
         write!(w, "47");
-        sgr(w, 49);  // bg: reset
+        sgr(w, SgrCode::FgColorWhite); // fg: reset
+        sgr(w, SgrCode::BgColorWhite); // bg: default
 
-        sgr(w, 1);  // bold on
-        sgr(w, 4);  // underline on
-        sgr(w, 5);  // blink on
-        sgr(w, 32);  // fg: green
-        sgr(w, 41);  // bg: red
-        write!(w, "x");
-        sgr(w, 0);  // reset
+        sgr(w, SgrCode::Bold); // bold on
+        sgr(w, SgrCode::Underline); // underline on
+        sgr(w, SgrCode::SlowBlink); // blink on
+        sgr(w, SgrCode::Normal); // reset
         write!(w, "x");
 
         writeln!(w);
         _flush(w);
 
         // teardown(w);
+    }
+
+    #[test]
+    fn test_sgr() {
+        let mut w = io::stdout();
+        let w = &mut w;
+
+        sgr(w, SgrCode::Normal); // reset
+        write!(w, "0");
+
+        sgr_color(w, SgrColor::FgColor8bit(0));
+        write!(w, "A");
+        sgr_color(w, SgrColor::FgColor8bit(1));
+        write!(w, "B");
+        sgr_color(w, SgrColor::FgColor8bit(0));
+        write!(w, "A");
+        sgr_color(w, SgrColor::FgColor8bit(1));
+        write!(w, "B");
     }
 
     #[test]

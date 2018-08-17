@@ -1,6 +1,6 @@
 extern crate termios;
 
-pub mod cis;
+pub mod csi;
 
 /// echo off. Return old termios state.
 pub fn echo_off() -> termios::Termios {
