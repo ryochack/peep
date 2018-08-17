@@ -492,6 +492,15 @@ impl<'a> Screen<'a> {
         }
         self.refresh();
     }
+
+    // return (x, y)
+    pub fn position(&self) -> (u32, u32) {
+        (self.specified_pt.x, self.specified_pt.y)
+    }
+
+    pub fn hlword(&self) -> &str {
+        &self.highlight_word
+    }
 }
 
 #[cfg(test)]

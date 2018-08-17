@@ -39,7 +39,36 @@ impl App {
         self
     }
 
-    fn handle(&self, keyop: &KeyOp, scr: &mut Screen) {
+    fn search(&self, buffer: &[String], pos: (u32, u32), pat: &str, reverse: bool) -> Option<(u32, u32)> {
+        if pat.is_empty() {
+            return None;
+        }
+        // TODO: BAD...
+        if !reverse {
+            for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
+                match line.find(pat) {
+                    Some(c) => {
+                        // hit!
+                        return Some((c as u32, pos.1 + i as u32))
+                    }
+                    None => {}
+                }
+            }
+        } else {
+            for (i, line) in buffer[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
+                match line.find(pat) {
+                    Some(c) => {
+                        // hit!
+                        return Some((c as u32, pos.1 - i as u32))
+                    }
+                    None => {}
+                }
+            }
+        }
+        None
+    }
+
+    fn handle(&self, keyop: &KeyOp, scr: &mut Screen, buffer: &[String]) {
         match keyop {
             &KeyOp::MoveDown(n) => {
                 scr.call(ScreenCall::MoveDown(n));
@@ -96,17 +125,46 @@ impl App {
                 scr.call(ScreenCall::SetNumOfLines(n));
             }
             KeyOp::SearchNext => {
-                // TODO: implementation
+                let cur_pos = scr.position();
+                let next_pos = (cur_pos.0,
+                                if cur_pos.1 == buffer.len() as u32 - 1 {
+                                    buffer.len() as u32 - 1
+                                } else {
+                                    cur_pos.1 + 1
+                                });
+                match self.search(buffer, next_pos, scr.hlword(), false) {
+                    Some(pos) => {
+                        scr.call(ScreenCall::MoveToLineNumber(pos.1));
+                    }
+                    None => {}
+                }
                 scr.call(ScreenCall::Message(None));
                 scr.call(ScreenCall::Refresh);
             }
             KeyOp::SearchPrev => {
-                // TODO: implementation
+                let cur_pos = scr.position();
+                let next_pos = (cur_pos.0,
+                                if cur_pos.1 == 0 {
+                                    0
+                                } else {
+                                    cur_pos.1 - 1
+                                });
+                match self.search(buffer, next_pos, scr.hlword(), true) {
+                    Some(pos) => {
+                        scr.call(ScreenCall::MoveToLineNumber(pos.1));
+                    }
+                    None => {}
+                }
                 scr.call(ScreenCall::Message(None));
                 scr.call(ScreenCall::Refresh);
             }
             KeyOp::SearchIncremental(s) => {
-                // TODO: implementation
+                match self.search(buffer, scr.position(), s.as_str(), false) {
+                    Some(pos) => {
+                        scr.call(ScreenCall::MoveToLineNumber(pos.1));
+                    }
+                    None => {}
+                }
                 scr.call(ScreenCall::Message(Some(&format!("/{}", s))));
                 scr.call(ScreenCall::HighLightWord(Some(&s)));
             }
@@ -131,7 +189,8 @@ impl App {
             buffer.push(v);
         }
 
-        let mut scr = Screen::new(&buffer, outstream, self.flags.nlines);
+        let buffer= &buffer;
+        let mut scr = Screen::new(buffer, outstream, self.flags.nlines);
         scr.call(ScreenCall::ShowLineNumber(self.flags.show_line_number));
         scr.call(ScreenCall::ShowNonPrinting(self.flags.show_nonprinting));
         scr.call(ScreenCall::Refresh);
@@ -142,7 +201,7 @@ impl App {
         loop {
             match keh.read() {
                 Some(keyop) => {
-                    self.handle(&keyop, &mut scr);
+                    self.handle(&keyop, &mut scr, buffer);
                     if keyop == KeyOp::Quit {
                         break;
                     }
