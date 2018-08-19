@@ -1,4 +1,4 @@
-use std::io::{Read, BufRead, Write};
+use std::io::{Read, Write};
 use screen::{Screen, ScreenCall};
 use keyevt::{KeyEventHandler, KeyOp};
 use keybind;
@@ -182,21 +182,14 @@ impl App {
         }
     }
 
-    pub fn run(&mut self, keystream: &mut Read, bufinstream: &mut BufRead, outstream: &mut Write) {
-        // read buffer from buffer-stream
-        let mut buffer: Vec<String> = vec![];
-        for v in bufinstream.lines().map(|v| v.unwrap()) {
-            buffer.push(v);
-        }
-
-        let buffer= &buffer;
+    pub fn run(&mut self, instream: &mut Read, outstream: &mut Write, buffer: &Vec<String>) {
         let mut scr = Screen::new(buffer, outstream, self.flags.nlines);
         scr.call(ScreenCall::ShowLineNumber(self.flags.show_line_number));
         scr.call(ScreenCall::ShowNonPrinting(self.flags.show_nonprinting));
         scr.call(ScreenCall::Refresh);
 
         let mut kb = keybind::default::KeyBind::new();
-        let mut keh = KeyEventHandler::new(keystream, &mut kb);
+        let mut keh = KeyEventHandler::new(instream, &mut kb);
 
         loop {
             match keh.read() {

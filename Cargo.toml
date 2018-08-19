@@ -7,3 +7,4 @@ authors = ["ryochack <ryochack@gmail.com>"]
 getopts = "0.2"
 termios = "0.3"
 termion = "1.5"
+nix = "0.11"

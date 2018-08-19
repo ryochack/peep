@@ -1,24 +1,46 @@
 extern crate getopts;
 extern crate peep;
+extern crate termion;
 
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use getopts::Options;
 use peep::app::App;
+use peep::tty;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
     print!("{}", opts.usage(&brief));
 }
 
-fn main() -> io::Result<()> {
-    // preare streams
-    let stdout_stream = io::stdout();
-    let mut stdoutlock_stream = stdout_stream.lock();
-    let stdin_stream = io::stdin();
-    let mut stdinlock_stream = stdin_stream.lock();
+fn read_buffer(filename: &str) -> io::Result<Vec<String>> {
+    let mut buffer: Vec<String> = vec![];
 
+    if filename == "-" {
+        let inp = io::stdin();
+        if termion::is_tty(&inp) {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
+        }
+        let inp = inp.lock();
+        for v in inp.lines().map(|v| v.unwrap()) {
+            buffer.push(v);
+        }
+    } else {
+        if let Ok(file) = File::open(&filename) {
+            let mut bufreader = BufReader::new(file);
+            for v in bufreader.lines().map(|v| v.unwrap()) {
+                buffer.push(v);
+            }
+        } else {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
+        }
+    }
+
+    return Ok(buffer)
+}
+
+fn main() -> io::Result<()> {
     // parse command arguments
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
@@ -54,21 +76,17 @@ fn main() -> io::Result<()> {
     } else {
         "-".to_owned()
     };
-    let file;
-    let mut freader;
-    let mut bufreader: &mut BufRead = if file_name == "-" {
-        // &mut stdinlock_stream
-        print_usage(&program, opts);
-        unimplemented!()
-    } else {
-        file = File::open(&file_name).expect(&format!(
-                "{}: {}: No such file or directory",
-                program, file_name));
-        freader = BufReader::new(file);
-        &mut freader
-    };
+    let buffer = read_buffer(&file_name).unwrap();
 
-    app.run(&mut stdinlock_stream, &mut bufreader, &mut stdoutlock_stream);
+    // preare streams
+    let ttyout = io::stdout();
+    let mut ttyout = ttyout.lock();
+
+    tty::force_set_to_stdin();
+    let ttyin = io::stdin();
+    let mut ttyin = ttyin.lock();
+
+    app.run(&mut ttyin, &mut ttyout, &buffer);
 
     Ok(())
 }
