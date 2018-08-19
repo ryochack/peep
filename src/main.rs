@@ -47,7 +47,6 @@ fn main() -> io::Result<()> {
     let mut opts = Options::new();
     opts.optopt("n", "numof-lines", "number of lines", "NUMBER");
     opts.optflag("N", "print-number", "print line number");
-    opts.optflag("v", "print-nonprinting", "print non-printing");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -63,9 +62,6 @@ fn main() -> io::Result<()> {
 
     if let Ok(Some(nlines)) = matches.opt_get::<u32>("n") {
         app.set_numof_lines(nlines);
-    }
-    if matches.opt_present("v") {
-        app.set_show_nonprinting(true);
     }
     if matches.opt_present("N") {
         app.set_show_line_number(true);

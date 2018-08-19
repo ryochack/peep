@@ -29,7 +29,6 @@ pub enum ScreenCall<'a> {
     MoveToLineNumber(u32),
 
     ShowLineNumber(bool),
-    ShowNonPrinting(bool),
     HighLightWord(Option<&'a str>),
 
     IncrementLines(u32),
@@ -47,7 +46,6 @@ pub struct Screen<'a> {
     flushed_numof_lines: u32,
     specified_pt: Point, // buffer point
 
-    show_nonprinting: bool,
     show_line_number: bool,
     show_highlight: bool,
     highlight_word: String,
@@ -64,7 +62,6 @@ impl<'a> Screen<'a> {
             specified_numof_lines: nlines,
             flushed_numof_lines: nlines,
             specified_pt: Point { x: 0, y: 0 },
-            show_nonprinting: false,
             show_line_number: false,
             show_highlight: false,
             highlight_word: "".to_owned(),
@@ -389,14 +386,6 @@ impl<'a> Screen<'a> {
         // self.dirty = true;
     }
 
-    fn scrcall_show_nonprinting(&mut self, b: bool) {
-        if b == self.show_nonprinting {
-            return;
-        };
-        self.show_nonprinting = b;
-        // self.dirty = true;
-    }
-
     fn scrcall_highlight_word(&mut self, hlword: Option<&str>) {
         match hlword {
             Some(w) => {
@@ -481,7 +470,6 @@ impl<'a> Screen<'a> {
             ScreenCall::MoveToBottomOfLines => self.scrcall_move_to_bottom_of_lines(),
             ScreenCall::MoveToLineNumber(n) => self.scrcall_move_to_line_number(n),
             ScreenCall::ShowLineNumber(b) => self.scrcall_show_line_number(b),
-            ScreenCall::ShowNonPrinting(b) => self.scrcall_show_nonprinting(b),
             ScreenCall::HighLightWord(hlword) => self.scrcall_highlight_word(hlword),
             ScreenCall::IncrementLines(n) => self.scrcall_increment_lines(n),
             ScreenCall::DecrementLines(n) => self.scrcall_decrement_lines(n),

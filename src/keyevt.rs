@@ -22,7 +22,6 @@ pub enum KeyOp {
     MoveToLineNumber(u32),
 
     ShowLineNumber(bool),
-    ShowNonPrinting(bool),
     IncrementLines(u32),
     DecrementLines(u32),
     SetNumOfLines(u32),

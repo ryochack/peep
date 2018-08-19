@@ -5,7 +5,6 @@ use keybind;
 
 struct Flags {
     nlines: u32,
-    show_nonprinting: bool,
     show_line_number: bool,
 }
 
@@ -18,7 +17,6 @@ impl App {
         App {
             flags: Flags {
                 nlines: 5,
-                show_nonprinting: false,
                 show_line_number: false,
             },
         }
@@ -26,11 +24,6 @@ impl App {
 
     pub fn set_numof_lines(&mut self, nlines: u32) -> &mut Self {
         self.flags.nlines = nlines;
-        self
-    }
-
-    pub fn set_show_nonprinting(&mut self, show_nonprinting: bool) -> &mut Self {
-        self.flags.show_nonprinting = show_nonprinting;
         self
     }
 
@@ -112,9 +105,6 @@ impl App {
             &KeyOp::ShowLineNumber(b) => {
                 scr.call(ScreenCall::ShowLineNumber(b));
             }
-            &KeyOp::ShowNonPrinting(b) => {
-                scr.call(ScreenCall::ShowNonPrinting(b));
-            }
             &KeyOp::IncrementLines(n) => {
                 scr.call(ScreenCall::IncrementLines(n));
             }
@@ -185,7 +175,6 @@ impl App {
     pub fn run(&mut self, instream: &mut Read, outstream: &mut Write, buffer: &Vec<String>) {
         let mut scr = Screen::new(buffer, outstream, self.flags.nlines);
         scr.call(ScreenCall::ShowLineNumber(self.flags.show_line_number));
-        scr.call(ScreenCall::ShowNonPrinting(self.flags.show_nonprinting));
         scr.call(ScreenCall::Refresh);
 
         let mut kb = keybind::default::KeyBind::new();
