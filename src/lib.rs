@@ -8,3 +8,4 @@ pub mod csi;
 pub mod keybind;
 pub mod keyevt;
 pub mod screen;
+pub mod pane;
