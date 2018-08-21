@@ -1,11 +1,12 @@
 extern crate getopts;
-extern crate peep;
 extern crate termion;
+extern crate peep;
 
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use getopts::Options;
+
 use peep::app::App;
 use peep::tty;
 

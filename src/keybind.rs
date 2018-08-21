@@ -27,7 +27,7 @@ pub mod default {
 
     pub struct KeyBind<'a> {
         state: State,
-        number: u32,
+        number: u16,
         wip_keys: String,
         cmap: HashMap<&'a str, KeyOp>,
     }
@@ -82,7 +82,7 @@ pub mod default {
         }
         fn trans_to_numbering(&mut self, c: char) {
             self.state = State::Numbering;
-            self.number = c.to_digit(10).unwrap();
+            self.number = c.to_digit(10).unwrap() as u16;
             self.wip_keys.push(c);
         }
         fn trans_to_commanding(&mut self) {
@@ -135,7 +135,7 @@ pub mod default {
         fn action_numbering(&mut self, c: char) -> Option<KeyOp> {
             match c {
                 '0'...'9' => {
-                    self.number = self.number * 10 + c.to_digit(10).unwrap();
+                    self.number = self.number * 10 + c.to_digit(10).unwrap() as u16;
                     Some(KeyOp::Message(self.number.to_string()))
                 }
                 c if !c.is_control() => {
