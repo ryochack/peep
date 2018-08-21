@@ -56,7 +56,7 @@ impl<'a> Pane<'a> {
             termsize_getter: Box::new(|| termion::terminal_size()),
         };
         pane.sweep();
-        pane.move_to_message_row();
+        pane.move_to_message_line();
         pane.flush();
         pane
     }
@@ -124,7 +124,7 @@ impl<'a> Pane<'a> {
         }
     }
 
-    fn move_to_message_row(&mut self) {
+    fn move_to_message_line(&mut self) {
         let ph = self.size().unwrap_or((1, 1)).1;
         write!(self.writer, "{}", cursor_ext::NextLine(ph));
     }
@@ -153,7 +153,7 @@ impl<'a> Pane<'a> {
         }
     }
 
-    /// return the end of y that is considered buffer rows and window size
+    /// return the end of y that is considered buffer lines and window size
     fn limit_bottom_y(&self) -> io::Result<u16> {
         Ok(self.linebuf.len() as u16 - self.size()?.1)
     }
@@ -166,10 +166,10 @@ impl<'a> Pane<'a> {
 
         Ok(
             if buf_height < pane_height {
-                // buffer rows does not fill pane rows
+                // buffer lines does not fill pane height
                 0..buf_height
             } else if buf_height <= y + pane_height {
-                // buffer rows is not enough at current pos. scroll up to fit.
+                // buffer lines is not enough at current pos. scroll up to fit.
                 (buf_height - pane_height)..buf_height
             } else {
                 y..(y + pane_height)
@@ -246,23 +246,23 @@ impl<'a> Pane<'a> {
         Ok(astep)
     }
 
-    pub fn goto_top_of_rows(&mut self) -> io::Result<(u16, u16)> {
+    pub fn goto_top_of_lines(&mut self) -> io::Result<(u16, u16)> {
         self.cur_pos = (0, 0);
         Ok(self.cur_pos)
     }
 
-    pub fn goto_bottom_of_rows(&mut self) -> io::Result<(u16, u16)> {
+    pub fn goto_bottom_of_lines(&mut self) -> io::Result<(u16, u16)> {
         let y = self.limit_bottom_y().unwrap();
         self.cur_pos = (0, y);
         Ok(self.cur_pos)
     }
 
-    pub fn goto_head_of_row(&mut self) -> io::Result<(u16, u16)> {
+    pub fn goto_head_of_line(&mut self) -> io::Result<(u16, u16)> {
         self.cur_pos.0 = 0;
         Ok(self.cur_pos)
     }
 
-    pub fn goto_tail_of_row(&mut self) -> io::Result<(u16, u16)> {
+    pub fn goto_tail_of_line(&mut self) -> io::Result<(u16, u16)> {
         let max_visible_line_len = self.linebuf[self.range_of_visible_lines().unwrap()]
             .iter()
             .map(|s| s.len())
@@ -271,22 +271,22 @@ impl<'a> Pane<'a> {
         Ok(self.cur_pos)
     }
 
-    pub fn goto_absolute_row(&mut self, row: u16) -> io::Result<u16> {
+    pub fn goto_absolute_line(&mut self, line: u16) -> io::Result<u16> {
         let buf_height = self.linebuf.len() as u16;
-        self.cur_pos.1 = if row >= buf_height {
+        self.cur_pos.1 = if line >= buf_height {
             buf_height - 1
         } else {
-            row
+            line
         };
         Ok(self.cur_pos.1)
     }
 
-    pub fn goto_absolute_column(&mut self, col: u16) -> io::Result<u16> {
+    pub fn goto_absolute_horizontal_offset(&mut self, offset: u16) -> io::Result<u16> {
         let max_visible_line_len = self.linebuf[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
-        self.cur_pos.0 = self.limit_right_x(col, max_visible_line_len)?;
+        self.cur_pos.0 = self.limit_right_x(offset, max_visible_line_len)?;
         Ok(self.cur_pos.0)
     }
 
