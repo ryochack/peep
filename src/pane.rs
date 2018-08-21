@@ -6,6 +6,8 @@ use std::io::{self, Write};
 use std::ops;
 use csi::cursor_ext;
 
+const DEFAULT_PANE_HEIGHT: u16 = 5;
+
 pub struct Pane<'a> {
     linebuf: &'a [String],
     writer: &'a mut Write,
@@ -18,6 +20,7 @@ pub struct Pane<'a> {
     show_highlight: bool,
     highlight_word: String,
     message: String,
+    termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
 }
 
 #[derive(Debug)]
@@ -28,7 +31,7 @@ pub enum ScrollStep {
 }
 
 impl ScrollStep {
-    pub fn to_numof_chars(&self, page_size: u16) -> u16 {
+    fn to_numof_chars(&self, page_size: u16) -> u16 {
         match *self {
             ScrollStep::Char(n) => n,
             ScrollStep::Halfpage(n) => (page_size * n) / 2,
@@ -42,14 +45,15 @@ impl<'a> Pane<'a> {
         let mut pane = Pane {
             linebuf: &[],
             writer: w,
-            height: 5,
-            numof_flushed_lines: 5,
+            height: DEFAULT_PANE_HEIGHT,
+            numof_flushed_lines: DEFAULT_PANE_HEIGHT,
             cur_pos: (0, 0),
             fullscreen: false,
             show_linenumber: false,
             show_highlight: false,
             highlight_word: "".to_owned(),
             message: "".to_owned(),
+            termsize_getter: Box::new(|| termion::terminal_size()),
         };
         pane.sweep();
         pane.move_to_message_row();
@@ -57,8 +61,14 @@ impl<'a> Pane<'a> {
         pane
     }
 
+    #[cfg(test)]
+    fn replace_termsize_getter(&mut self, getter: Box<Fn() -> io::Result<(u16, u16)>>) {
+        self.termsize_getter = getter;
+    }
+
     pub fn load(&mut self, buf: &'a [String]) {
         self.linebuf = buf;
+        self.cur_pos = (0, 0);
     }
 
     fn flush(&mut self) {
@@ -125,7 +135,7 @@ impl<'a> Pane<'a> {
 
     /// return (width, height)
     pub fn size(&self) -> io::Result<(u16, u16)> {
-        termion::terminal_size().map(|(tw, th)| {
+        (*self.termsize_getter)().map(|(tw, th)| {
             (tw, cmp::min(th, self.height))
         })
     }
@@ -290,7 +300,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn increment_height(&mut self, n: u16) -> io::Result<u16> {
-        let max = termion::terminal_size()?.1;
+        let max = (*self.termsize_getter)()?.1;
         let height = if self.height + n < max { self.height + n } else { max };
         self.set_height(height)
     }
@@ -305,11 +315,124 @@ impl<'a> Pane<'a> {
 mod tests {
     use super::*;
 
-    fn setup() {}
+    const static_texts: &'static [&'static str] = &[
+        "11111111",
+        "22222222",
+        "33333333",
+        "44444444",
+        "5555555555555555",
+        "6666666666666666",
+        "7777777777777777",
+        "8888888888888888",
+        "99999999999999999999999999999999",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+        "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+        ];
 
-    fn teardown() {}
+    fn setup() {
+    }
+
+    fn teardown() {
+    }
+
+    fn texts() -> Vec<String> {
+        let mut v: Vec<String> = vec![];
+        for t in static_texts.iter() {
+            v.push(t.to_string());
+        }
+        v
+    }
 
     #[test]
-    fn test_pane_hoge() {
+    fn test_pane_scroll() {
+        use std::io;
+        use std::{thread, time};
+        use std::fs::OpenOptions;
+        use std::io::BufWriter;
+
+        // let w = io::stdout();
+        // let mut w = w.lock();
+        let f = OpenOptions::new().write(true).open("/dev/null").unwrap();
+        let mut w = BufWriter::new(f);
+
+        let texts = texts();
+        let mut pane = Pane::new(&mut w);
+        pane.load(&texts);
+
+        let size_getter = || Ok((10, 4));
+        let size = size_getter().unwrap();
+        let mut pos = pane.position();
+        pane.replace_termsize_getter(Box::new(size_getter));
+
+        assert!(pane.refresh().is_ok());
+
+        // scroll down
+        assert_eq!(pane.scroll_down(ScrollStep::Char(1)).unwrap(), 1);
+        pos.1 += 1;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_down(ScrollStep::Char(3)).unwrap(), 3);
+        pos.1 += 3;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_down(ScrollStep::Halfpage(1)).unwrap(), size.1/2);
+        pos.1 += size.1/2;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_down(ScrollStep::Page(1)).unwrap(), size.1);
+        pos.1 += size.1;
+        assert_eq!(pane.position(), pos);
+        // bottom limit
+        let bottom = texts.len() as u16 - size.1;
+        let remain = bottom - pos.1;
+        assert_eq!(pane.scroll_down(ScrollStep::Page(10)).unwrap(), remain);
+        pos.1 = bottom;
+        assert_eq!(pane.position(), pos);
+
+        // scroll up
+        assert_eq!(pane.scroll_up(ScrollStep::Char(1)).unwrap(), 1);
+        pos.1 -= 1;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_up(ScrollStep::Char(2)).unwrap(), 2);
+        pos.1 -= 2;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_up(ScrollStep::Halfpage(2)).unwrap(), (size.1 * 2)/2);
+        pos.1 -= (size.1 * 2)/2;
+        assert_eq!(pane.position(), pos);
+        assert_eq!(pane.scroll_up(ScrollStep::Page(1)).unwrap(), size.1);
+        pos.1 -= size.1;
+        assert_eq!(pane.position(), pos);
+        // top limit
+        assert_eq!(pane.scroll_up(ScrollStep::Page(10)).unwrap(), pos.1);
+        pos.1 = 0;
+        assert_eq!(pane.position(), pos);
+    }
+
+    #[test]
+    fn test_pane() {
+        use std::io;
+        use std::{thread, time};
+
+        let w = io::stdout();
+        let mut w = w.lock();
+        let texts = texts();
+        let mut pane = Pane::new(&mut w);
+        pane.replace_termsize_getter(Box::new(|| Ok((10, 5))));
+        pane.load(&texts);
+        pane.refresh();
+        thread::sleep(time::Duration::from_millis(200));
+        pane.scroll_down(ScrollStep::Char(1));
+        thread::sleep(time::Duration::from_millis(200));
+        pane.scroll_down(ScrollStep::Char(1));
+        thread::sleep(time::Duration::from_millis(200));
+        pane.scroll_down(ScrollStep::Char(1));
+
+        pane.set_height(10);
+        pane.refresh();
+
+        pane.quit();
     }
 }
+
