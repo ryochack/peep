@@ -76,8 +76,14 @@ impl<'a> Pane<'a> {
     }
 
     fn sweep(&mut self) {
-        write!(self.writer, "{}", cursor_ext::HorizontalAbsolute(1));
-        write!(self.writer, "{}", termion::clear::AfterCursor);
+        let mut s = String::new();
+        s += &format!("{}", cursor_ext::HorizontalAbsolute(1));
+        s += &format!("{}", termion::clear::AfterCursor);
+        for _ in 0..self.height {
+            s += "\n";
+        }
+        s += &format!("{}", cursor_ext::PreviousLine(self.height as u16));
+        self.writer.write(s.as_bytes()).unwrap();
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
