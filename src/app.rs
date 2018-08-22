@@ -114,6 +114,9 @@ impl App {
                 pane.refresh()?;
                 pane.set_message(None);
             }
+
+            use std::{thread, time};
+            thread::sleep(time::Duration::from_millis(50));
         }
 
         Ok(())
