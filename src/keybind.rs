@@ -36,7 +36,7 @@ pub mod default {
         pub fn new() -> Self {
             let mut kb = KeyBind {
                 state: State::Ready,
-                number: 1,
+                number: 0,
                 wip_keys: String::with_capacity(64),
                 cmap: HashMap::new(),
             };
@@ -73,12 +73,12 @@ pub mod default {
 
         fn trans_to_ready(&mut self) {
             self.state = State::Ready;
-            self.number = 1;
+            self.number = 0;
             self.wip_keys.clear();
         }
         fn trans_to_incsearching(&mut self) {
             self.state = State::IncSearching;
-            self.number = 1;
+            self.number = 0;
             self.wip_keys.clear();
         }
         fn trans_to_numbering(&mut self, c: char) {
@@ -192,19 +192,27 @@ pub mod default {
         }
 
         fn combine_command(&self, op: KeyOp) -> KeyOp {
+            let valid_num = |n| if n == 0 { 1 } else { n };
             match op {
-                KeyOp::MoveDown(_) => KeyOp::MoveDown(self.number),
-                KeyOp::MoveUp(_) => KeyOp::MoveUp(self.number),
-                KeyOp::MoveLeft(_) => KeyOp::MoveLeft(self.number),
-                KeyOp::MoveRight(_) => KeyOp::MoveRight(self.number),
-                KeyOp::MoveDownHalfPages(_) => KeyOp::MoveDownHalfPages(self.number),
-                KeyOp::MoveUpHalfPages(_) => KeyOp::MoveUpHalfPages(self.number),
-                KeyOp::MoveDownPages(_) => KeyOp::MoveDownPages(self.number),
-                KeyOp::MoveUpPages(_) => KeyOp::MoveUpPages(self.number),
-                KeyOp::MoveToLineNumber(_) => KeyOp::MoveToLineNumber(self.number),
-                KeyOp::IncrementLines(_) => KeyOp::IncrementLines(self.number),
-                KeyOp::DecrementLines(_) => KeyOp::DecrementLines(self.number),
-                KeyOp::SetNumOfLines(_) => KeyOp::SetNumOfLines(self.number),
+                KeyOp::MoveDown(_) => KeyOp::MoveDown(valid_num(self.number)),
+                KeyOp::MoveUp(_) => KeyOp::MoveUp(valid_num(self.number)),
+                KeyOp::MoveLeft(_) => KeyOp::MoveLeft(valid_num(self.number)),
+                KeyOp::MoveRight(_) => KeyOp::MoveRight(valid_num(self.number)),
+                KeyOp::MoveDownHalfPages(_) => KeyOp::MoveDownHalfPages(valid_num(self.number)),
+                KeyOp::MoveUpHalfPages(_) => KeyOp::MoveUpHalfPages(valid_num(self.number)),
+                KeyOp::MoveDownPages(_) => KeyOp::MoveDownPages(valid_num(self.number)),
+                KeyOp::MoveUpPages(_) => KeyOp::MoveUpPages(valid_num(self.number)),
+                KeyOp::MoveToTopOfLines | KeyOp::MoveToBottomOfLines => {
+                    if self.number == 0 {
+                        op
+                    } else {
+                        KeyOp::MoveToLineNumber(self.number - 1)
+                    }
+                },
+                KeyOp::MoveToLineNumber(_) => KeyOp::MoveToLineNumber(valid_num(self.number)),
+                KeyOp::IncrementLines(_) => KeyOp::IncrementLines(valid_num(self.number)),
+                KeyOp::DecrementLines(_) => KeyOp::DecrementLines(valid_num(self.number)),
+                KeyOp::SetNumOfLines(_) => KeyOp::SetNumOfLines(valid_num(self.number)),
                 _ => op,
             }
         }
