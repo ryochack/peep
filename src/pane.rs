@@ -87,10 +87,11 @@ impl<'a> Pane<'a> {
     fn sweep(&mut self) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
-        s.push_str(&format!("{}", termion::clear::AfterCursor));
         for _ in 0..self.height {
+            s.push_str(&format!("{}", termion::clear::CurrentLine));
             s.push_str("\n");
         }
+        s.push_str(&format!("{}", termion::clear::CurrentLine));
         s.push_str(&format!("{}", cursor_ext::PreviousLine(self.height as u16)));
         self.writer.write(s.as_bytes()).unwrap();
     }
@@ -265,8 +266,6 @@ impl<'a> Pane<'a> {
     pub fn refresh(&mut self) -> io::Result<()> {
         // content lines
         let buf_range = self.range_of_visible_lines()?;
-        self.return_home();
-        self.sweep();
         let mut block = String::new();
         for (i, line) in self.linebuf[buf_range.start..buf_range.end].iter().enumerate() {
             block.push_str(&format!("{}\n", self.decorate(&line, (buf_range.start + i) as u16)));
@@ -279,6 +278,8 @@ impl<'a> Pane<'a> {
             block.push_str(&format!("{}", self.message));
         };
 
+        self.return_home();
+        self.sweep();
         self.writer.write(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
