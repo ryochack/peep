@@ -185,6 +185,8 @@ impl App {
                 // scr.call(ScreenCall::Refresh);
             }
             KeyOp::SearchIncremental(s) => {
+                pane.set_highlight_word(Some(&s));
+                pane.refresh();
                 // match self.search(buffer, scr.position(), s.as_str(), false) {
                 //     Some(pos) => {
                 //         scr.call(ScreenCall::MoveToLineNumber(pos.1));
@@ -196,7 +198,7 @@ impl App {
             }
 
             KeyOp::Message(s) => {
-                pane.set_message(Some(&s));
+                // pane.set_message(Some(&s));
                 pane.refresh();
                 // scr.call(ScreenCall::Message(Some(&s)));
             }

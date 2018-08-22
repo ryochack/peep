@@ -77,23 +77,151 @@ impl<'a> Pane<'a> {
 
     fn sweep(&mut self) {
         let mut s = String::new();
-        s += &format!("{}", cursor_ext::HorizontalAbsolute(1));
-        s += &format!("{}", termion::clear::AfterCursor);
+        s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
+        s.push_str(&format!("{}", termion::clear::AfterCursor));
         for _ in 0..self.height {
-            s += "\n";
+            s.push_str("\n");
         }
-        s += &format!("{}", cursor_ext::PreviousLine(self.height as u16));
+        s.push_str(&format!("{}", cursor_ext::PreviousLine(self.height as u16)));
         self.writer.write(s.as_bytes()).unwrap();
+    }
+
+    /// Highlight line with the highlight word
+    fn highlight(raw: &str, hlword: &str) -> String {
+        let mut line = String::new();
+        let mut i = 0;
+        for m in raw.match_indices(hlword) {
+            let hl = (m.0, m.0 + m.1.len());
+            line.push_str(raw.get(i..hl.0).unwrap_or("#"));
+            line.push_str(&format!("{}", termion::style::Invert));
+            line.push_str(raw.get(hl.0..hl.1).unwrap_or("#"));
+            line.push_str(&format!("{}", termion::style::Reset));
+            i = hl.1;
+        }
+        if i < raw.len() {
+            line.push_str(raw.get(i..).unwrap_or("#"));
+        }
+        line
+    }
+
+    //    ....[[[....]]]....
+    // [:  1   2  3   4
+    //  1: ^
+    //  2:   ^
+    //  3:        ^           (highlighting)
+    //  4:              ^
+    //
+    //    ....[[[....]]]....
+    // ]:     1  2   3   4
+    //  1:   ^
+    //  2:       ^            (highlighting)
+    //  3:              ^
+    // # ORIGINAL
+    // "impl<'a>
+    //   ~~       :Hilight
+    //
+    // # HIGHLIGHT STR
+    // [0:'i'][1:'\u{1b}'][2:'['][3:'7'][4:'m'][5:'m'][6:'p'][7:'\u{1b}'][8:'['][9:'m'][10:'l'][11:'<'][12:'\''][13:'a'][14:'>']
+    // # LOGIC INDEX
+    // [0:'i'][5:('m',HL)][6:('p',HL)][10:'l'][11:'<'][12:'\''][13:'a'][14:'>']
+    //
+    /// generate indices that ignore CSI sequence
+    /// This function return tuple (index, is_highlighting)
+    fn gen_logic_indices(raw: &str) -> Vec<(usize, bool)> {
+        let mut nongraphic = String::new();
+        let mut pat = format!("{}", termion::style::Invert);
+        let mut highlighting = false;
+
+        raw.char_indices().filter_map(move |(i, c)| {
+            if !nongraphic.is_empty() {
+                // CSI sequence mode
+                nongraphic.push(c);
+                if &nongraphic == &pat {
+                    // Match CSI sequence and leave CSI sequence mode
+                    nongraphic.clear();
+                    highlighting = !highlighting;
+                    pat = if highlighting {
+                        format!("{}", termion::style::Reset)
+                    } else {
+                        format!("{}", termion::style::Invert)
+                    };
+                }
+                None
+            } else if c == '\x1B' {
+                // Enter CSI sequence mode
+                nongraphic.push(c);
+                None
+            } else {
+                Some((i, highlighting))
+            }
+        }).collect::<Vec<(usize, bool)>>()
+    }
+
+    /// trim with logical length to fit pane width.
+    fn trim(raw: &str, range: ops::Range<usize>) -> String {
+        if raw.is_empty() || raw.len() < range.start {
+            return raw[0..0].to_owned();
+        }
+
+        let logic_indices = Pane::gen_logic_indices(raw);
+
+        if logic_indices.is_empty() {
+            return raw.to_owned();
+        }
+        if logic_indices.len() <= range.start {
+            return raw[0..0].to_owned();
+        }
+
+        let s = logic_indices[range.start];
+        let e = logic_indices.get(range.end).unwrap_or(logic_indices.last().unwrap());
+        let mut trimed = String::new();
+        if s.1 == true {
+            // if start with highlight, push CSI invert to head
+            trimed.push_str(&format!("{}", termion::style::Invert));
+        }
+        trimed.push_str(raw.get(s.0..e.0).unwrap());
+        if e.1 == true {
+            // if end with highlight, push CSI Reset to end
+            trimed.push_str(&format!("{}", termion::style::Reset));
+        }
+        trimed
+    }
+
+    // Decorate line
+    fn decorate(&self, raw: &str, line_number: u16) -> String {
+        let line = if self.show_highlight {
+            Pane::highlight(raw, &self.highlight_word)
+        } else {
+            raw.to_owned()
+        };
+
+        let mut range = (self.cur_pos.0 as usize, (self.cur_pos.0 + self.size().unwrap().0) as usize);
+
+        if self.show_linenumber {
+            let used_space = 5;
+            range.1 -= used_space;
+            format!("{:>4} {}{}", line_number + 1,
+                    Pane::trim(&line,
+                               range.0..cmp::min(raw.len(), range.1)
+                    ),
+                    termion::style::Reset)
+        } else {
+            format!("{}{}",
+                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)).to_owned(),
+                    termion::style::Reset)
+        }
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
         let buf_range = self.range_of_visible_lines()?;
         self.return_home();
         self.sweep();
+        let mut block = String::new();
         for (i, line) in self.linebuf[buf_range.start..buf_range.end].iter().enumerate() {
-            writeln!(self.writer, "{}", line);
+            block.push_str(&format!("{}\n", self.decorate(&line, (buf_range.start + i) as u16)));
         }
-        write!(self.writer, ":{}", self.message);
+        block.push_str(&format!(":{}", self.message));
+        self.writer.write(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
         Ok(())
@@ -246,7 +374,7 @@ impl<'a> Pane<'a> {
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
         let x = self.limit_right_x(self.cur_pos.0 + step, max_visible_line_len)?;
-        assert!(x > self.cur_pos.0, format!("{} > {} is not pass!", x, self.cur_pos.0));
+        assert!(x >= self.cur_pos.0, format!("{} > {} is not pass!", x, self.cur_pos.0));
         let astep = x - self.cur_pos.0;
         self.cur_pos.0 = x;
         Ok(astep)
