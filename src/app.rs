@@ -148,6 +148,14 @@ impl App {
                 pane.scroll_up(ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
+            &KeyOp::MoveLeftHalfPages(n) => {
+                pane.scroll_left(ScrollStep::Halfpage(n))?;
+                pane.refresh()?;
+            }
+            &KeyOp::MoveRightHalfPages(n) => {
+                pane.scroll_right(ScrollStep::Halfpage(n))?;
+                pane.refresh()?;
+            }
             &KeyOp::MoveDownPages(n) => {
                 pane.scroll_down(ScrollStep::Page(n))?;
                 pane.refresh()?;

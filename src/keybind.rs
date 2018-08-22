@@ -53,6 +53,8 @@ pub mod default {
                 ("l", KeyOp::MoveRight(1)),
                 ("d", KeyOp::MoveDownHalfPages(1)),
                 ("u", KeyOp::MoveUpHalfPages(1)),
+                ("H", KeyOp::MoveLeftHalfPages(1)),
+                ("L", KeyOp::MoveRightHalfPages(1)),
                 ("f", KeyOp::MoveDownPages(1)),
                 ("b", KeyOp::MoveUpPages(1)),
                 ("0", KeyOp::MoveToHeadOfLine),
@@ -200,6 +202,8 @@ pub mod default {
                 KeyOp::MoveRight(_) => KeyOp::MoveRight(valid_num(self.number)),
                 KeyOp::MoveDownHalfPages(_) => KeyOp::MoveDownHalfPages(valid_num(self.number)),
                 KeyOp::MoveUpHalfPages(_) => KeyOp::MoveUpHalfPages(valid_num(self.number)),
+                KeyOp::MoveLeftHalfPages(_) => KeyOp::MoveLeftHalfPages(valid_num(self.number)),
+                KeyOp::MoveRightHalfPages(_) => KeyOp::MoveRightHalfPages(valid_num(self.number)),
                 KeyOp::MoveDownPages(_) => KeyOp::MoveDownPages(valid_num(self.number)),
                 KeyOp::MoveUpPages(_) => KeyOp::MoveUpPages(valid_num(self.number)),
                 KeyOp::MoveToTopOfLines | KeyOp::MoveToBottomOfLines => {

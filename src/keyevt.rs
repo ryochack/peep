@@ -13,6 +13,8 @@ pub enum KeyOp {
     MoveRight(u16),
     MoveDownHalfPages(u16),
     MoveUpHalfPages(u16),
+    MoveLeftHalfPages(u16),
+    MoveRightHalfPages(u16),
     MoveDownPages(u16),
     MoveUpPages(u16),
     MoveToHeadOfLine,
