@@ -142,7 +142,8 @@ pub mod default {
             match c {
                 '0'...'9' => {
                     self.number = self.number * 10 + c.to_digit(10).unwrap() as u16;
-                    Some(KeyOp::Message(Some(self.number.to_string())))
+                    // Some(KeyOp::Message(Some(self.number.to_string())))
+                    None
                 }
                 c if !c.is_control() => {
                     self.trans_to_commanding();
