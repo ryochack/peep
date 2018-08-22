@@ -1,6 +1,7 @@
 extern crate ctrlc;
 extern crate termion;
 
+use regex::Regex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::thread::spawn;
@@ -190,14 +191,19 @@ impl App {
                 pane.refresh()?;
             }
             KeyOp::SearchIncremental(s) => {
-                match self.search(linebuf, pane.position(), &s, false) {
-                    Some(pos) => {
-                        pane.goto_absolute_line(pos.1)?;
-                    }
-                    None => {}
-                }
                 pane.set_message(Some(&format!("/{}", s)));
-                pane.set_highlight_word(Some(&s));
+                // pane.set_highlight_word(Some(&s));
+                let _ = pane.set_highlight_regex(Some(&s));
+
+                // if let Some(pos) = self.search_by_str(linebuf, pane.position(), &s, false) {
+                //     pane.goto_absolute_line(pos.1)?;
+                // }
+
+                let hlpat = pane.ref_highlight_regex().to_owned();
+                if let Some(pos) = self.search_by_regex(linebuf, pane.position(), &hlpat, false) {
+                    pane.goto_absolute_line(pos.1)?;
+                }
+
                 pane.refresh()?;
             }
             KeyOp::SearchTrigger => {
@@ -212,10 +218,17 @@ impl App {
                                 } else {
                                     cur_pos.1 + 1
                                 });
-                let hlword = pane.highlight_word().unwrap_or("").to_owned();
-                if let Some(pos) = self.search(linebuf, next_pos, &hlword, false) {
+
+                let hlpat = pane.ref_highlight_regex().to_owned();
+                if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, false) {
                     pane.goto_absolute_line(pos.1)?;
                 }
+
+                // let hlpat = pane.ref_highlight_word().unwrap_or("").to_owned();
+                // if let Some(pos) = self.search_by_str(linebuf, next_pos, &hlpat, false) {
+                //     pane.goto_absolute_line(pos.1)?;
+                // }
+
                 pane.set_message(None);
                 pane.refresh()?;
             }
@@ -227,10 +240,17 @@ impl App {
                                 } else {
                                     cur_pos.1 - 1
                                 });
-                let hlword = pane.highlight_word().unwrap_or("").to_owned();
-                if let Some(pos) = self.search(linebuf, next_pos, &hlword, true) {
+
+                let hlpat = pane.ref_highlight_regex().to_owned();
+                if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
                     pane.goto_absolute_line(pos.1)?;
                 }
+
+                // let hlpat = pane.ref_highlight_word().unwrap_or("").to_owned();
+                // if let Some(pos) = self.search_by_str(linebuf, next_pos, &hlpat, true) {
+                //     pane.goto_absolute_line(pos.1)?;
+                // }
+
                 pane.set_message(None);
                 pane.refresh()?;
             }
@@ -250,29 +270,41 @@ impl App {
         Ok(())
     }
 
-    fn search(&self, buffer: &[String], pos: (u16, u16), pat: &str, reverse: bool) -> Option<(u16, u16)> {
+    #[allow(dead_code)]
+    /// return (x, y)
+    fn search_by_str(&self, buffer: &[String], pos: (u16, u16), pat: &str, reverse: bool) -> Option<(u16, u16)> {
         if pat.is_empty() {
             return None;
         }
-        // TODO: BAD implementation...
         if !reverse {
             for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
-                match line.find(pat) {
-                    Some(c) => {
-                        // hit!
-                        return Some((c as u16, pos.1 + i as u16))
-                    }
-                    None => {}
+                if let Some(c) = line.find(pat) {
+                    return Some((c as u16, pos.1 + i as u16));
                 }
             }
         } else {
             for (i, line) in buffer[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
-                match line.find(pat) {
-                    Some(c) => {
-                        // hit!
-                        return Some((c as u16, pos.1 - i as u16))
-                    }
-                    None => {}
+                if let Some(c) = line.find(pat) {
+                    // hit!
+                    return Some((c as u16, pos.1 - i as u16));
+                }
+            }
+        }
+        None
+    }
+
+    /// return (x, y)
+    fn search_by_regex(&self, buffer: &[String], pos: (u16, u16), re: &Regex, reverse: bool) -> Option<(u16, u16)> {
+        if !reverse {
+            for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
+                if let Some(m) = re.find(&line) {
+                    return Some((m.start() as u16, pos.1 + i as u16));
+                }
+            }
+        } else {
+            for (i, line) in buffer[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
+                if let Some(m) = re.find(&line) {
+                    return Some((m.start() as u16, pos.1 - i as u16));
                 }
             }
         }

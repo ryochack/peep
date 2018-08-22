@@ -1,4 +1,5 @@
 extern crate nix;
+extern crate regex;
 extern crate termios;
 extern crate termion;
 

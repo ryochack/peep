@@ -1,5 +1,6 @@
 //! Pane module
 
+use regex::{self, Regex};
 use termion;
 use std::cmp;
 use std::io::{self, Write};
@@ -25,7 +26,8 @@ pub struct Pane<'a> {
     cur_pos: (u16, u16),
     show_linenumber: bool,
     show_highlight: bool,
-    highlight_word: String,
+    _highlight_word: String,
+    highlight_re: Regex,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
 }
@@ -57,7 +59,8 @@ impl<'a> Pane<'a> {
             cur_pos: (0, 0),
             show_linenumber: false,
             show_highlight: false,
-            highlight_word: "".to_owned(),
+            _highlight_word: "".to_owned(),
+            highlight_re: Regex::new("").unwrap(),
             message: "".to_owned(),
             termsize_getter: Box::new(|| termion::terminal_size()),
         };
@@ -92,12 +95,32 @@ impl<'a> Pane<'a> {
         self.writer.write(s.as_bytes()).unwrap();
     }
 
+    #[allow(dead_code)]
     /// Highlight line with the highlight word
-    fn highlight(raw: &str, hlword: &str) -> String {
+    fn highlight_by_str(raw: &str, hlword: &str) -> String {
         let mut line = String::new();
         let mut i = 0;
         for m in raw.match_indices(hlword) {
             let hl = (m.0, m.0 + m.1.len());
+            line.push_str(raw.get(i..hl.0).unwrap_or("#"));
+            line.push_str(&format!("{}", termion::style::Invert));
+            line.push_str(raw.get(hl.0..hl.1).unwrap_or("#"));
+            line.push_str(&format!("{}", termion::style::Reset));
+            i = hl.1;
+        }
+        if i < raw.len() {
+            line.push_str(raw.get(i..).unwrap_or("#"));
+        }
+        line
+    }
+
+    /// Highlight line with the highlight word
+    fn highlight_by_regex(raw: &str, re: &Regex) -> String {
+        let mut line = String::new();
+        let mut i = 0;
+
+        for m in re.find_iter(raw) {
+            let hl = (m.start(), m.end());
             line.push_str(raw.get(i..hl.0).unwrap_or("#"));
             line.push_str(&format!("{}", termion::style::Invert));
             line.push_str(raw.get(hl.0..hl.1).unwrap_or("#"));
@@ -196,7 +219,8 @@ impl<'a> Pane<'a> {
     // Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let mut line = if self.show_highlight {
-            Pane::highlight(raw, &self.highlight_word)
+            // Pane::highlight_by_str(raw, &self._highlight_word)
+            Pane::highlight_by_regex(raw, &self.highlight_re)
         } else {
             raw.to_owned()
         };
@@ -262,17 +286,45 @@ impl<'a> Pane<'a> {
         self.show_linenumber = b;
     }
 
+    #[allow(dead_code)]
     pub fn set_highlight_word(&mut self, hlword: Option<&str>) {
         if let Some(w) = hlword {
             if w.is_empty() {
                 self.show_highlight = false;
             } else {
                 self.show_highlight = true;
-                self.highlight_word = w.to_owned();
+                self._highlight_word = w.to_owned();
             }
         } else {
             self.show_highlight = false;
         }
+    }
+
+    pub fn set_highlight_regex(&mut self, re: Option<&str>) -> io::Result<()> {
+        if let Some(r) = re {
+            let a = Regex::new(r);
+            if a.is_err() {
+                self.show_highlight = false;
+                // TODO: unify pane error list
+                return match a.unwrap_err() {
+                    regex::Error::Syntax(_s) => {
+                        Err(io::Error::new(io::ErrorKind::InvalidInput, "Syntax error"))
+                    },
+                    regex::Error::CompiledTooBig(_n) => {
+                        Err(io::Error::new(io::ErrorKind::InvalidInput, "Compiled too big"))
+                    },
+                    _ => {
+                        Err(io::Error::new(io::ErrorKind::Other, "Unknown regex error"))
+                    }
+                }
+            }
+            self.show_highlight = true;
+            self.highlight_re = a.unwrap();
+        } else {
+            self.show_highlight = false;
+            self.highlight_re = Regex::new("").unwrap();
+        }
+        Ok(())
     }
 
     pub fn set_message(&mut self, msg: Option<&str>) {
@@ -304,12 +356,17 @@ impl<'a> Pane<'a> {
         self.cur_pos
     }
 
-    pub fn highlight_word(&self) -> Option<&str> {
-        if self.highlight_word.is_empty() {
+    #[allow(dead_code)]
+    pub fn ref_highlight_word(&self) -> Option<&str> {
+        if self._highlight_word.is_empty() {
             None
         } else {
-            Some(&self.highlight_word)
+            Some(&self._highlight_word)
         }
+    }
+
+    pub fn ref_highlight_regex(&self) -> &Regex {
+        &self.highlight_re
     }
 
     /// return the end of y that is considered buffer lines and window size
