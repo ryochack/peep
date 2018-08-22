@@ -21,7 +21,7 @@ pub enum KeyOp {
     MoveToBottomOfLines,
     MoveToLineNumber(u16),
 
-    ShowLineNumber(bool),
+    ToggleLineNumberPrinting,
     IncrementLines(u16),
     DecrementLines(u16),
     SetNumOfLines(u16),

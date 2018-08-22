@@ -141,8 +141,9 @@ impl App {
                 pane.goto_absolute_line(n)?;
                 pane.refresh()?;
             }
-            &KeyOp::ShowLineNumber(b) => {
-                pane.show_line_number(b);
+            &KeyOp::ToggleLineNumberPrinting => {
+                self.show_linenumber = !self.show_linenumber;
+                pane.show_line_number(self.show_linenumber);
                 pane.refresh()?;
             }
             &KeyOp::IncrementLines(n) => {

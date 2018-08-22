@@ -59,6 +59,7 @@ pub mod default {
                 ("$", KeyOp::MoveToEndOfLine),
                 ("gg", KeyOp::MoveToTopOfLines),
                 ("G", KeyOp::MoveToBottomOfLines),
+                ("#", KeyOp::ToggleLineNumberPrinting),
                 ("-", KeyOp::DecrementLines(1)),
                 ("+", KeyOp::IncrementLines(1)),
                 ("n", KeyOp::SearchNext),
@@ -257,6 +258,7 @@ mod tests {
         assert_eq!(kb.parse('n'), Some(KeyOp::SearchNext));
         assert_eq!(kb.parse('N'), Some(KeyOp::SearchPrev));
         assert_eq!(kb.parse('q'), Some(KeyOp::Quit));
+        assert_eq!(kb.parse('#'), Some(KeyOp::ToggleLineNumberPrinting));
 
         assert_eq!(kb.parse('g'), Some(KeyOp::Message(Some("g".to_owned()))));
         assert_eq!(kb.parse('x'), Some(KeyOp::Message(None)));
