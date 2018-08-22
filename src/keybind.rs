@@ -95,7 +95,7 @@ pub mod default {
             match c {
                 '/' => {
                     self.trans_to_incsearching();
-                    Some(KeyOp::Message(Some(c.to_string())))
+                    Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
                 }
                 '1'...'9' => {
                     self.trans_to_numbering(c);
@@ -118,8 +118,12 @@ pub mod default {
                 }
                 '\x08' | '\x7f' => {
                     // BackSpace, Delete
-                    self.wip_keys.pop();
-                    Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
+                    if self.wip_keys.pop().is_none() {
+                        self.trans_to_ready();
+                        Some(KeyOp::Cancel)
+                    } else {
+                        Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
+                    }
                 }
                 '\n' => {
                     // LF
