@@ -99,7 +99,8 @@ pub mod default {
                 }
                 '1'...'9' => {
                     self.trans_to_numbering(c);
-                    Some(KeyOp::Message(Some(self.number.to_string())))
+                    // Some(KeyOp::Message(Some(self.number.to_string())))
+                    None
                 }
                 c if !c.is_control() => {
                     self.trans_to_commanding();
