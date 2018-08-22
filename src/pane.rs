@@ -8,6 +8,14 @@ use csi::cursor_ext;
 
 const DEFAULT_PANE_HEIGHT: u16 = 5;
 
+use std::fmt;
+pub struct ExtendMark;
+impl fmt::Display for ExtendMark {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}+{}", termion::style::Invert, termion::style::Reset)
+    }
+}
+
 pub struct Pane<'a> {
     linebuf: &'a [String],
     writer: &'a mut Write,
@@ -187,27 +195,38 @@ impl<'a> Pane<'a> {
 
     // Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
-        let line = if self.show_highlight {
+        let mut line = if self.show_highlight {
             Pane::highlight(raw, &self.highlight_word)
         } else {
             raw.to_owned()
         };
 
-        let mut range = (self.cur_pos.0 as usize, (self.cur_pos.0 + self.size().unwrap().0) as usize);
+        // right margin is for EOL mark
+        let right_blank_margin: usize = 1;
+        let mut range = (
+            self.cur_pos.0 as usize,
+            (self.cur_pos.0 + self.size().unwrap().0) as usize - right_blank_margin
+        );
 
-        if self.show_linenumber {
+        line = if self.show_linenumber {
             let used_space = 5;
             range.1 -= used_space;
-            format!("{:>4} {}{}", line_number + 1,
-                    Pane::trim(&line,
-                               range.0..cmp::min(raw.len(), range.1)
-                    ),
-                    termion::style::Reset)
+            format!("{:>4} {}", line_number + 1,
+                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)))
         } else {
-            format!("{}{}",
-                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)).to_owned(),
-                    termion::style::Reset)
-        }
+            format!("{}",
+                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)))
+        };
+
+        // add EOL mark
+        let eol = if raw.len() > range.1 {
+            format!("{}", ExtendMark)
+        } else {
+            format!("{}", termion::style::Reset)
+        };
+        line.push_str(&eol);
+
+        line
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
