@@ -165,15 +165,7 @@ pub mod default {
                         None => {
                             if self.cmap.keys().any(|&k| k.starts_with(&self.wip_keys)) {
                                 // has candidates
-                                Some(KeyOp::Message(Some(format!(
-                                    "{}{}",
-                                    if self.number == 1 {
-                                        "".to_owned()
-                                    } else {
-                                        self.number.to_string()
-                                    },
-                                    self.wip_keys
-                                ))))
+                                None
                             } else {
                                 // not exist => cancel
                                 needs_trans = true;
@@ -249,7 +241,7 @@ mod tests {
         assert_eq!(kb.parse('0'), Some(KeyOp::MoveToHeadOfLine));
         assert_eq!(kb.parse('$'), Some(KeyOp::MoveToEndOfLine));
 
-        assert_eq!(kb.parse('g'), Some(KeyOp::Message(Some("g".to_owned()))));
+        assert_eq!(kb.parse('g'), None);
         assert_eq!(kb.parse('g'), Some(KeyOp::MoveToTopOfLines));
 
         assert_eq!(kb.parse('G'), Some(KeyOp::MoveToBottomOfLines));
