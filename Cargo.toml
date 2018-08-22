@@ -8,3 +8,5 @@ getopts = "0.2"
 termios = "0.3"
 termion = "1.5"
 nix = "0.11"
+ctrlc = "3.1"
+

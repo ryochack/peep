@@ -1,7 +1,10 @@
+extern crate ctrlc;
 extern crate termion;
 
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use std::thread::spawn;
+use std::sync::mpsc;
 
 use keybind;
 use keyevt::{KeyEventHandler, KeyOp};
@@ -58,10 +61,15 @@ impl App {
         // to input key from stdin when pipe is enable.
         tty::switch_stdin_to_tty();
 
-        let reader = io::stdin();
-        let mut reader = reader.lock();
         let writer = io::stdout();
         let mut writer = writer.lock();
+
+        // Ctrl-C handler
+        let (sigint_tx, sigint_rx) = mpsc::channel();
+        ctrlc::set_handler(move || {
+            // receive SIGINT
+            sigint_tx.send(()).unwrap();
+        }).expect("Error setting ctrl-c handler");
 
         let mut pane = Pane::new(&mut writer);
         pane.load(&linebuf);
@@ -69,18 +77,41 @@ impl App {
         pane.set_height(self.nlines)?;
         pane.refresh()?;
 
-        let mut kb = keybind::default::KeyBind::new();
-        let mut keh = KeyEventHandler::new(&mut reader, &mut kb);
+        // Key reading thread
+        let (key_tx, key_rx) = mpsc::channel();
+        let _keythread = spawn(move || {
+            let reader = io::stdin();
+            let mut reader = reader.lock();
+            let mut kb = keybind::default::KeyBind::new();
+            let mut keh = KeyEventHandler::new(&mut reader, &mut kb);
 
-        loop {
-            match keh.read() {
-                Some(keyop) => {
-                    self.handle(&keyop, &mut pane, &linebuf)?;
-                    if keyop == KeyOp::Quit {
-                        break;
+            loop {
+                match keh.read() {
+                    Some(keyop) => {
+                        key_tx.send(keyop.clone()).unwrap();
+                        if keyop == KeyOp::Quit {
+                            break;
+                        }
                     }
+                    None => {}
                 }
-                None => {}
+            }
+        });
+
+        // app loop
+        loop {
+            if let Ok(keyop) = key_rx.try_recv() {
+                self.handle(&keyop, &mut pane, &linebuf)?;
+                if keyop == KeyOp::Quit {
+                    break;
+                }
+            }
+            if sigint_rx.try_recv().is_ok() {
+                // receive SIGINT
+                // ring a bel
+                pane.set_message(Some("\x07"));
+                pane.refresh()?;
+                pane.set_message(None);
             }
         }
 
