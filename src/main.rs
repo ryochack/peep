@@ -1,89 +1,68 @@
 extern crate getopts;
-extern crate termion;
-extern crate peep;
-
-use std::env;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
 use getopts::Options;
+use std::env;
+use std::io;
 
+extern crate peep;
 use peep::app::App;
-use peep::tty;
 
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} FILE [options]", program);
+fn print_usage(prog: &str, version: &str, opts: &Options) {
+    let brief = format!(
+        "{p} {v}\n\nUsage: {p} [OPTION]... [FILE]",
+        p=prog, v=version);
     print!("{}", opts.usage(&brief));
 }
 
-fn read_buffer(filename: &str) -> io::Result<Vec<String>> {
-    let mut buffer: Vec<String> = vec![];
-
-    if filename == "-" {
-        let inp = io::stdin();
-        if termion::is_tty(&inp) {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
-        }
-        let inp = inp.lock();
-        for v in inp.lines().map(|v| v.unwrap()) {
-            buffer.push(v);
-        }
-    } else {
-        if let Ok(file) = File::open(&filename) {
-            let mut bufreader = BufReader::new(file);
-            for v in bufreader.lines().map(|v| v.unwrap()) {
-                buffer.push(v);
-            }
-        } else {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
-        }
-    }
-
-    return Ok(buffer)
+fn print_version(prog: &str, version: &str) {
+    println!("{} {}", prog, version);
 }
 
-fn main() -> io::Result<()> {
-    // parse command arguments
-    let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
+fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
+    use std::process;
+
     let mut opts = Options::new();
-    opts.optopt("n", "numof-lines", "number of lines", "NUMBER");
-    opts.optflag("N", "print-number", "print line number");
-    opts.optflag("h", "help", "print this help menu");
-    let matches = match opts.parse(&args[1..]) {
+    opts.optopt("n", "lines", "set height of pane", "LINES")
+        .optflag("N", "print-line-number", "print line numbers")
+        .optflag("h", "help", "show this usage")
+        .optflag("v", "version", "show version");
+
+    let matches = match opts.parse(args) {
         Ok(m) => { m }
         Err(f) => { panic!(f.to_string()) }
     };
 
     if matches.opt_present("h") {
-        print_usage(&program, opts);
-        return Ok(());
+        print_usage(prog, version, &opts);
+        process::exit(0);
+    }
+
+    if matches.opt_present("v") {
+        print_version(prog, version);
+        process::exit(0);
     }
 
     let mut app = App::new();
-
-    if let Ok(Some(nlines)) = matches.opt_get::<u32>("n") {
-        app.set_numof_lines(nlines);
-    }
-    if matches.opt_present("N") {
-        app.set_show_line_number(true);
+    app.show_linenumber = matches.opt_present("N");
+    if let Ok(Some(nlines)) = matches.opt_get::<u16>("n") {
+        app.nlines = nlines;
     }
 
-    let file_name = if !matches.free.is_empty() {
+    let file_path = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
         "-".to_owned()
     };
-    let buffer = read_buffer(&file_name).unwrap();
 
-    // preare streams
-    let ttyout = io::stdout();
-    let mut ttyout = ttyout.lock();
+    (app, file_path)
+}
 
-    tty::force_set_to_stdin();
-    let ttyin = io::stdin();
-    let mut ttyin = ttyin.lock();
+fn main() -> io::Result<()> {
+    let prog = env!("CARGO_PKG_NAME");
+    let version = env!("CARGO_PKG_VERSION");
+    let args: Vec<String> = env::args().collect();
 
-    app.run(&mut ttyin, &mut ttyout, &buffer);
+    let (mut app, file_path) = build_app(prog, version, &args[1..]);
 
+    app.run(&file_path)?;
     Ok(())
 }

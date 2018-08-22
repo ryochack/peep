@@ -16,7 +16,7 @@ pub fn echo_on(termstat: &termios::Termios) {
 
 /// switch stdin to tty
 /// after leave function, stdin is set as tty.
-pub fn force_set_to_stdin() {
+pub fn switch_stdin_to_tty() {
     use std::fs::File;
     use nix::unistd;
     use std::io;

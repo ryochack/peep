@@ -26,11 +26,12 @@ pub enum KeyOp {
     DecrementLines(u16),
     SetNumOfLines(u16),
 
+    SearchIncremental(String),
+    SearchTrigger,
     SearchNext,
     SearchPrev,
-    SearchIncremental(String),
 
-    Message(String),
+    Message(Option<String>),
 
     Cancel,
     Quit,

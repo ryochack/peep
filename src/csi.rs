@@ -1,3 +1,4 @@
+/// Bring These macros from termion crates.
 /// Create a CSI-introduced sequence.
 macro_rules! csi {
     ($( $l:expr ),*) => { concat!("\x1B[", $( $l ),*) };
