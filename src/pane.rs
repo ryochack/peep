@@ -15,7 +15,6 @@ pub struct Pane<'a> {
     numof_flushed_lines: u16,
     // cur_pos: (x, y)
     cur_pos: (u16, u16),
-    fullscreen: bool,
     show_linenumber: bool,
     show_highlight: bool,
     highlight_word: String,
@@ -48,7 +47,6 @@ impl<'a> Pane<'a> {
             height: DEFAULT_PANE_HEIGHT,
             numof_flushed_lines: DEFAULT_PANE_HEIGHT,
             cur_pos: (0, 0),
-            fullscreen: false,
             show_linenumber: false,
             show_highlight: false,
             highlight_word: "".to_owned(),
@@ -173,13 +171,13 @@ impl<'a> Pane<'a> {
         }
 
         let s = logic_indices[range.start];
-        let e = logic_indices.get(range.end).unwrap_or(logic_indices.last().unwrap());
+        let e = logic_indices.get(range.end-1).unwrap_or(logic_indices.last().unwrap());
         let mut trimed = String::new();
         if s.1 == true {
             // if start with highlight, push CSI invert to head
             trimed.push_str(&format!("{}", termion::style::Invert));
         }
-        trimed.push_str(raw.get(s.0..e.0).unwrap());
+        trimed.push_str(raw.get(s.0..e.0+1).unwrap());
         if e.1 == true {
             // if end with highlight, push CSI Reset to end
             trimed.push_str(&format!("{}", termion::style::Reset));
@@ -220,7 +218,7 @@ impl<'a> Pane<'a> {
         for (i, line) in self.linebuf[buf_range.start..buf_range.end].iter().enumerate() {
             block.push_str(&format!("{}\n", self.decorate(&line, (buf_range.start + i) as u16)));
         }
-        block.push_str(&format!(":{}", self.message));
+        block.push_str(&format!("{}", self.message));
         self.writer.write(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
