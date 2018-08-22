@@ -10,10 +10,10 @@ use csi::cursor_ext;
 const DEFAULT_PANE_HEIGHT: u16 = 5;
 
 use std::fmt;
-pub struct ExtendMark;
+pub struct ExtendMark(pub char);
 impl fmt::Display for ExtendMark {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}+{}", termion::style::Invert, termion::style::Reset)
+        write!(f, "{}{}{}", termion::style::Invert, self.0, termion::style::Reset)
     }
 }
 
@@ -218,39 +218,48 @@ impl<'a> Pane<'a> {
 
     // Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
-        let mut line = if self.show_highlight {
+        let hlline = if self.show_highlight {
             // Pane::highlight_by_str(raw, &self._highlight_word)
             Pane::highlight_by_regex(raw, &self.highlight_re)
         } else {
             raw.to_owned()
         };
 
-        // right margin is for EOL mark
-        let right_blank_margin: usize = 1;
+        // right margin is for extend marks
+        let right_blank_margin: usize = 2;
         let mut range = (
             self.cur_pos.0 as usize,
             (self.cur_pos.0 + self.size().unwrap().0) as usize - right_blank_margin
         );
 
-        line = if self.show_linenumber {
-            let used_space = 5;
-            range.1 -= used_space;
-            format!("{:>4} {}", line_number + 1,
-                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)))
+        // add line number
+        let ln = if self.show_linenumber {
+            let linenumber_space = 4;
+            range.1 -= linenumber_space;
+            format!("{:>4}", line_number + 1)
         } else {
-            format!("{}",
-                    Pane::trim(&line, range.0..cmp::min(raw.len(), range.1)))
+            String::new()
         };
 
-        // add EOL mark
+        // add extend marks
+        let sol = if range.0 > 0 {
+            format!("{}", ExtendMark('+'))
+        } else {
+            " ".to_owned()
+        };
+
+        // trimed line
+        let trimed = format!("{}",
+                             Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1)));
+
+        // add extend marks
         let eol = if raw.len() > range.1 {
-            format!("{}", ExtendMark)
+            format!("{}", ExtendMark('+'))
         } else {
             format!("{}", termion::style::Reset)
         };
-        line.push_str(&eol);
 
-        line
+        format!("{}{}{}{}", ln, sol, trimed, eol)
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
@@ -396,7 +405,7 @@ impl<'a> Pane<'a> {
     /// return the horizontal offset that is considered pane size and string length
     fn limit_right_x(&self, next_x: u16, max_len: u16) -> io::Result<u16> {
         // FIXME: magic number for right margin
-        let margin_right = 8;
+        let margin_right = 2;
         let margined_len = max_len + margin_right;
         let pane_width = self.size()?.0;
 
