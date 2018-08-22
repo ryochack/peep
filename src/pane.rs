@@ -211,6 +211,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
+        // content lines
         let buf_range = self.range_of_visible_lines()?;
         self.return_home();
         self.sweep();
@@ -218,7 +219,14 @@ impl<'a> Pane<'a> {
         for (i, line) in self.linebuf[buf_range.start..buf_range.end].iter().enumerate() {
             block.push_str(&format!("{}\n", self.decorate(&line, (buf_range.start + i) as u16)));
         }
-        block.push_str(&format!("{}", self.message));
+
+        // message line
+        if self.message.is_empty() && buf_range.end == self.linebuf.len() {
+            block.push_str(&format!("{}(END){}", termion::style::Invert, termion::style::Reset));
+        } else {
+            block.push_str(&format!("{}", self.message));
+        };
+
         self.writer.write(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
