@@ -37,6 +37,8 @@ pub enum KeyOp {
 
     Cancel,
     Quit,
+
+    SigInt,
 }
 
 pub struct KeyEventHandler<'a> {

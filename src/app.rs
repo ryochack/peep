@@ -65,11 +65,13 @@ impl App {
         let writer = io::stdout();
         let mut writer = writer.lock();
 
+        let (sender, reciever) = mpsc::channel();
+        let sig_sender = sender.clone();
+
         // Ctrl-C handler
-        let (sigint_tx, sigint_rx) = mpsc::channel();
         ctrlc::set_handler(move || {
             // receive SIGINT
-            sigint_tx.send(()).unwrap();
+            sig_sender.send(KeyOp::SigInt).unwrap();
         }).expect("Error setting ctrl-c handler");
 
         let mut pane = Pane::new(&mut writer);
@@ -79,7 +81,6 @@ impl App {
         pane.refresh()?;
 
         // Key reading thread
-        let (key_tx, key_rx) = mpsc::channel();
         let _keythread = spawn(move || {
             let reader = io::stdin();
             let mut reader = reader.lock();
@@ -89,7 +90,7 @@ impl App {
             loop {
                 match keh.read() {
                     Some(keyop) => {
-                        key_tx.send(keyop.clone()).unwrap();
+                        sender.send(keyop.clone()).unwrap();
                         if keyop == KeyOp::Quit {
                             break;
                         }
@@ -101,22 +102,20 @@ impl App {
 
         // app loop
         loop {
-            if let Ok(keyop) = key_rx.try_recv() {
-                self.handle(&keyop, &mut pane, &linebuf)?;
-                if keyop == KeyOp::Quit {
-                    break;
+            if let Ok(keyop) = reciever.recv() {
+                if keyop == KeyOp::SigInt {
+                    // receive SIGINT
+                    // ring a bel
+                    pane.set_message(Some("\x07"));
+                    pane.refresh()?;
+                    pane.set_message(None);
+                } else {
+                    self.handle(&keyop, &mut pane, &linebuf)?;
+                    if keyop == KeyOp::Quit {
+                        break;
+                    }
                 }
             }
-            if sigint_rx.try_recv().is_ok() {
-                // receive SIGINT
-                // ring a bel
-                pane.set_message(Some("\x07"));
-                pane.refresh()?;
-                pane.set_message(None);
-            }
-
-            use std::{thread, time};
-            thread::sleep(time::Duration::from_millis(50));
         }
 
         Ok(())
@@ -277,6 +276,7 @@ impl App {
             KeyOp::Quit => {
                 pane.quit();
             }
+            _ => {}
         }
         Ok(())
     }
