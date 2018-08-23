@@ -59,7 +59,7 @@ pub mod default {
                 ("b", KeyOp::MoveUpPages(1)),
                 ("0", KeyOp::MoveToHeadOfLine),
                 ("$", KeyOp::MoveToEndOfLine),
-                ("gg", KeyOp::MoveToTopOfLines),
+                ("g", KeyOp::MoveToTopOfLines),
                 ("G", KeyOp::MoveToBottomOfLines),
                 ("#", KeyOp::ToggleLineNumberPrinting),
                 ("-", KeyOp::DecrementLines(1)),
@@ -97,7 +97,7 @@ pub mod default {
             match c {
                 '/' => {
                     self.trans_to_incsearching();
-                    Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
+                    Some(KeyOp::SearchIncremental("".to_owned()))
                 }
                 '1'...'9' => {
                     self.trans_to_numbering(c);
@@ -155,7 +155,8 @@ pub mod default {
                 '\x1b' | '\n' => {
                     // ESC and LF -> Cancel
                     self.trans_to_ready();
-                    Some(KeyOp::Message(None))
+                    None
+                    // Some(KeyOp::Message(None))
                 }
                 _ => None,
             }
@@ -258,10 +259,7 @@ mod tests {
         assert_eq!(kb.parse('b'), Some(KeyOp::MoveUpPages(1)));
         assert_eq!(kb.parse('0'), Some(KeyOp::MoveToHeadOfLine));
         assert_eq!(kb.parse('$'), Some(KeyOp::MoveToEndOfLine));
-
-        assert_eq!(kb.parse('g'), None);
         assert_eq!(kb.parse('g'), Some(KeyOp::MoveToTopOfLines));
-
         assert_eq!(kb.parse('G'), Some(KeyOp::MoveToBottomOfLines));
         assert_eq!(kb.parse('-'), Some(KeyOp::DecrementLines(1)));
         assert_eq!(kb.parse('+'), Some(KeyOp::IncrementLines(1)));
@@ -269,10 +267,6 @@ mod tests {
         assert_eq!(kb.parse('N'), Some(KeyOp::SearchPrev));
         assert_eq!(kb.parse('q'), Some(KeyOp::Quit));
         assert_eq!(kb.parse('#'), Some(KeyOp::ToggleLineNumberPrinting));
-
-        assert_eq!(kb.parse('g'), Some(KeyOp::Message(Some("g".to_owned()))));
-        assert_eq!(kb.parse('x'), Some(KeyOp::Message(None)));
-
         assert_eq!(kb.parse('\x1b'), Some(KeyOp::Cancel));
     }
 
@@ -281,19 +275,19 @@ mod tests {
         let mut kb = default::KeyBind::new();
 
         // normal commands
-        assert_eq!(kb.parse('1'), Some(KeyOp::Message(Some("1".to_owned()))));
-        assert_eq!(kb.parse('2'), Some(KeyOp::Message(Some("12".to_owned()))));
-        assert_eq!(kb.parse('\n'), Some(KeyOp::Message(None)));
+        assert_eq!(kb.parse('1'), None);
+        assert_eq!(kb.parse('2'), None);
+        assert_eq!(kb.parse('\n'), None);
 
-        assert_eq!(kb.parse('1'), Some(KeyOp::Message(Some("1".to_owned()))));
-        assert_eq!(kb.parse('2'), Some(KeyOp::Message(Some("12".to_owned()))));
-        assert_eq!(kb.parse('\x1b'), Some(KeyOp::Message(None)));
+        assert_eq!(kb.parse('1'), None);
+        assert_eq!(kb.parse('2'), None);
+        assert_eq!(kb.parse('\x1b'), None);
 
-        assert_eq!(kb.parse('2'), Some(KeyOp::Message(Some("2".to_owned()))));
+        assert_eq!(kb.parse('2'), None);
         assert_eq!(kb.parse('j'), Some(KeyOp::MoveDown(2)));
 
-        assert_eq!(kb.parse('1'), Some(KeyOp::Message(Some("1".to_owned()))));
-        assert_eq!(kb.parse('0'), Some(KeyOp::Message(Some("10".to_owned()))));
+        assert_eq!(kb.parse('1'), None);
+        assert_eq!(kb.parse('0'), None);
         assert_eq!(kb.parse('h'), Some(KeyOp::MoveLeft(10)));
     }
 
@@ -302,7 +296,7 @@ mod tests {
         let mut kb = default::KeyBind::new();
 
         // search commands
-        assert_eq!(kb.parse('/'), Some(KeyOp::Message(Some("/".to_owned()))));
+        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('w'),
             Some(KeyOp::SearchIncremental("w".to_owned()))
@@ -321,7 +315,7 @@ mod tests {
         );
         assert_eq!(kb.parse('\n'), Some(KeyOp::SearchTrigger));
 
-        assert_eq!(kb.parse('/'), Some(KeyOp::Message(Some("/".to_owned()))));
+        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('a'),
             Some(KeyOp::SearchIncremental("a".to_owned()))
@@ -340,8 +334,10 @@ mod tests {
         );
         assert_eq!(
             kb.parse('\x08'),
-            Some(KeyOp::SearchIncremental("".to_owned()))
+            Some(KeyOp::Cancel)
         );
+
+        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('w'),
             Some(KeyOp::SearchIncremental("w".to_owned()))
