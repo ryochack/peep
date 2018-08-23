@@ -213,7 +213,7 @@ pub mod default {
                     } else {
                         KeyOp::MoveToLineNumber(self.number - 1)
                     }
-                },
+                }
                 KeyOp::MoveToLineNumber(_) => KeyOp::MoveToLineNumber(valid_num(self.number)),
                 KeyOp::IncrementLines(_) => KeyOp::IncrementLines(valid_num(self.number)),
                 KeyOp::DecrementLines(_) => KeyOp::DecrementLines(valid_num(self.number)),
@@ -332,10 +332,7 @@ mod tests {
             kb.parse('\x08'),
             Some(KeyOp::SearchIncremental("".to_owned()))
         );
-        assert_eq!(
-            kb.parse('\x08'),
-            Some(KeyOp::Cancel)
-        );
+        assert_eq!(kb.parse('\x08'), Some(KeyOp::Cancel));
 
         assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
         assert_eq!(

@@ -1,11 +1,11 @@
 extern crate nix;
 extern crate regex;
-extern crate termios;
 extern crate termion;
+extern crate termios;
 
-pub mod tty;
+pub mod app;
 pub mod csi;
 pub mod keybind;
 pub mod keyevt;
 pub mod pane;
-pub mod app;
+pub mod tty;

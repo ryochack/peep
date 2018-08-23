@@ -10,7 +10,9 @@ use peep::app::App;
 fn print_usage(prog: &str, version: &str, opts: &Options) {
     let brief = format!(
         "{p} {v}\n\nUsage: {p} [OPTION]... [FILE]",
-        p=prog, v=version);
+        p = prog,
+        v = version
+    );
     print!("{}", opts.usage(&brief));
 }
 
@@ -28,8 +30,8 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
         .optflag("v", "version", "show version");
 
     let matches = match opts.parse(args) {
-        Ok(m) => { m }
-        Err(f) => { panic!(f.to_string()) }
+        Ok(m) => m,
+        Err(f) => panic!(f.to_string()),
     };
 
     if matches.opt_present("h") {

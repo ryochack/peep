@@ -17,11 +17,10 @@ pub fn echo_on(termstat: &termios::Termios) {
 /// switch stdin to tty
 /// after leave function, stdin is set as tty.
 pub fn switch_stdin_to_tty() {
-    use std::fs::File;
     use nix::unistd;
+    use std::fs::File;
     use std::io;
     use std::os::unix::io::AsRawFd;
     let file = File::open("/dev/tty").unwrap();
     let _ = unistd::dup2(file.as_raw_fd(), io::stdin().as_raw_fd());
 }
-

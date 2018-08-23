@@ -62,8 +62,16 @@ pub mod cursor_style {
 
     derive_csi_sequence!("Set the cursor style blinking block", BlinkingBlock, "1 q");
     derive_csi_sequence!("Set the cursor style steady block", SteadyBlock, "2 q");
-    derive_csi_sequence!("Set the cursor style blinking underline", BlinkingUnderline, "3 q");
-    derive_csi_sequence!("Set the cursor style steady underline", SteadyUnderline, "4 q");
+    derive_csi_sequence!(
+        "Set the cursor style blinking underline",
+        BlinkingUnderline,
+        "3 q"
+    );
+    derive_csi_sequence!(
+        "Set the cursor style steady underline",
+        SteadyUnderline,
+        "4 q"
+    );
     derive_csi_sequence!("Set the cursor style blinking bar", BlinkingBar, "5 q");
     derive_csi_sequence!("Set the cursor style steady bar", SteadyBar, "6 q");
 }

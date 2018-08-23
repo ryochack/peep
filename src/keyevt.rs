@@ -2,8 +2,8 @@ extern crate termios;
 
 /// Key Event Handler
 use keybind;
-use tty;
 use std::io::Read;
+use tty;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum KeyOp {
@@ -72,4 +72,3 @@ impl<'a> KeyEventHandler<'a> {
         None
     }
 }
-

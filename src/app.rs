@@ -4,8 +4,8 @@ extern crate termion;
 use regex::Regex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::thread::spawn;
 use std::sync::mpsc;
+use std::thread::spawn;
 
 use keybind;
 use keyevt::{KeyEventHandler, KeyOp};
@@ -222,12 +222,14 @@ impl App {
             }
             KeyOp::SearchNext => {
                 let cur_pos = pane.position();
-                let next_pos = (cur_pos.0,
-                                if cur_pos.1 == linebuf.len() as u16 - 1 {
-                                    linebuf.len() as u16 - 1
-                                } else {
-                                    cur_pos.1 + 1
-                                });
+                let next_pos = (
+                    cur_pos.0,
+                    if cur_pos.1 == linebuf.len() as u16 - 1 {
+                        linebuf.len() as u16 - 1
+                    } else {
+                        cur_pos.1 + 1
+                    },
+                );
 
                 let hlpat = pane.ref_highlight_regex().to_owned();
                 if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, false) {
@@ -244,12 +246,7 @@ impl App {
             }
             KeyOp::SearchPrev => {
                 let cur_pos = pane.position();
-                let next_pos = (cur_pos.0,
-                                if cur_pos.1 == 0 {
-                                    0
-                                } else {
-                                    cur_pos.1 - 1
-                                });
+                let next_pos = (cur_pos.0, if cur_pos.1 == 0 { 0 } else { cur_pos.1 - 1 });
 
                 let hlpat = pane.ref_highlight_regex().to_owned();
                 if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
@@ -283,7 +280,13 @@ impl App {
 
     #[allow(dead_code)]
     /// return (x, y)
-    fn search_by_str(&self, buffer: &[String], pos: (u16, u16), pat: &str, reverse: bool) -> Option<(u16, u16)> {
+    fn search_by_str(
+        &self,
+        buffer: &[String],
+        pos: (u16, u16),
+        pat: &str,
+        reverse: bool,
+    ) -> Option<(u16, u16)> {
         if pat.is_empty() {
             return None;
         }
@@ -305,7 +308,13 @@ impl App {
     }
 
     /// return (x, y)
-    fn search_by_regex(&self, buffer: &[String], pos: (u16, u16), re: &Regex, reverse: bool) -> Option<(u16, u16)> {
+    fn search_by_regex(
+        &self,
+        buffer: &[String],
+        pos: (u16, u16),
+        re: &Regex,
+        reverse: bool,
+    ) -> Option<(u16, u16)> {
         if !reverse {
             for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
                 if let Some(m) = re.find(&line) {
@@ -321,7 +330,4 @@ impl App {
         }
         None
     }
-
 }
-
-

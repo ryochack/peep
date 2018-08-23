@@ -1,11 +1,11 @@
 //! Pane module
 
+use csi::cursor_ext;
 use regex::{self, Regex};
-use termion;
 use std::cmp;
 use std::io::{self, Write};
 use std::ops;
-use csi::cursor_ext;
+use termion;
 
 const DEFAULT_PANE_HEIGHT: u16 = 5;
 
@@ -13,7 +13,13 @@ use std::fmt;
 pub struct ExtendMark(pub char);
 impl fmt::Display for ExtendMark {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}{}", termion::style::Invert, self.0, termion::style::Reset)
+        write!(
+            f,
+            "{}{}{}",
+            termion::style::Invert,
+            self.0,
+            termion::style::Reset
+        )
     }
 }
 
@@ -162,29 +168,30 @@ impl<'a> Pane<'a> {
         let mut pat = format!("{}", termion::style::Invert);
         let mut highlighting = false;
 
-        raw.char_indices().filter_map(move |(i, c)| {
-            if !nongraphic.is_empty() {
-                // CSI sequence mode
-                nongraphic.push(c);
-                if &nongraphic == &pat {
-                    // Match CSI sequence and leave CSI sequence mode
-                    nongraphic.clear();
-                    highlighting = !highlighting;
-                    pat = if highlighting {
-                        format!("{}", termion::style::Reset)
-                    } else {
-                        format!("{}", termion::style::Invert)
-                    };
+        raw.char_indices()
+            .filter_map(move |(i, c)| {
+                if !nongraphic.is_empty() {
+                    // CSI sequence mode
+                    nongraphic.push(c);
+                    if &nongraphic == &pat {
+                        // Match CSI sequence and leave CSI sequence mode
+                        nongraphic.clear();
+                        highlighting = !highlighting;
+                        pat = if highlighting {
+                            format!("{}", termion::style::Reset)
+                        } else {
+                            format!("{}", termion::style::Invert)
+                        };
+                    }
+                    None
+                } else if c == '\x1B' {
+                    // Enter CSI sequence mode
+                    nongraphic.push(c);
+                    None
+                } else {
+                    Some((i, highlighting))
                 }
-                None
-            } else if c == '\x1B' {
-                // Enter CSI sequence mode
-                nongraphic.push(c);
-                None
-            } else {
-                Some((i, highlighting))
-            }
-        }).collect::<Vec<(usize, bool)>>()
+            }).collect::<Vec<(usize, bool)>>()
     }
 
     /// trim with logical length to fit pane width.
@@ -203,13 +210,15 @@ impl<'a> Pane<'a> {
         }
 
         let s = logic_indices[range.start];
-        let e = logic_indices.get(range.end-1).unwrap_or(logic_indices.last().unwrap());
+        let e = logic_indices
+            .get(range.end - 1)
+            .unwrap_or(logic_indices.last().unwrap());
         let mut trimed = String::new();
         if s.1 == true {
             // if start with highlight, push CSI invert to head
             trimed.push_str(&format!("{}", termion::style::Invert));
         }
-        trimed.push_str(raw.get(s.0..e.0+1).unwrap());
+        trimed.push_str(raw.get(s.0..e.0 + 1).unwrap());
         if e.1 == true {
             // if end with highlight, push CSI Reset to end
             trimed.push_str(&format!("{}", termion::style::Reset));
@@ -230,7 +239,7 @@ impl<'a> Pane<'a> {
         let right_blank_margin: usize = 2;
         let mut range = (
             self.cur_pos.0 as usize,
-            (self.cur_pos.0 + self.size().unwrap().0) as usize - right_blank_margin
+            (self.cur_pos.0 + self.size().unwrap().0) as usize - right_blank_margin,
         );
 
         // add line number
@@ -250,8 +259,10 @@ impl<'a> Pane<'a> {
         };
 
         // trimed line
-        let trimed = format!("{}",
-                             Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1)));
+        let trimed = format!(
+            "{}",
+            Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1))
+        );
 
         // add extend marks
         let eol = if raw.len() > range.1 {
@@ -267,13 +278,23 @@ impl<'a> Pane<'a> {
         // content lines
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
-        for (i, line) in self.linebuf[buf_range.start..buf_range.end].iter().enumerate() {
-            block.push_str(&format!("{}\n", self.decorate(&line, (buf_range.start + i) as u16)));
+        for (i, line) in self.linebuf[buf_range.start..buf_range.end]
+            .iter()
+            .enumerate()
+        {
+            block.push_str(&format!(
+                "{}\n",
+                self.decorate(&line, (buf_range.start + i) as u16)
+            ));
         }
 
         // message line
         if self.message.is_empty() && buf_range.end == self.linebuf.len() {
-            block.push_str(&format!("{}(END){}", termion::style::Invert, termion::style::Reset));
+            block.push_str(&format!(
+                "{}(END){}",
+                termion::style::Invert,
+                termion::style::Reset
+            ));
         } else {
             block.push_str(&format!("{}", self.message));
         };
@@ -319,14 +340,13 @@ impl<'a> Pane<'a> {
                 return match a.unwrap_err() {
                     regex::Error::Syntax(_s) => {
                         Err(io::Error::new(io::ErrorKind::InvalidInput, "Syntax error"))
-                    },
-                    regex::Error::CompiledTooBig(_n) => {
-                        Err(io::Error::new(io::ErrorKind::InvalidInput, "Compiled too big"))
-                    },
-                    _ => {
-                        Err(io::Error::new(io::ErrorKind::Other, "Unknown regex error"))
                     }
-                }
+                    regex::Error::CompiledTooBig(_n) => Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "Compiled too big",
+                    )),
+                    _ => Err(io::Error::new(io::ErrorKind::Other, "Unknown regex error")),
+                };
             }
             self.show_highlight = true;
             self.highlight_re = a.unwrap();
@@ -351,14 +371,16 @@ impl<'a> Pane<'a> {
     }
 
     fn return_home(&mut self) {
-        write!(self.writer, "{}", cursor_ext::PreviousLine(self.numof_flushed_lines));
+        write!(
+            self.writer,
+            "{}",
+            cursor_ext::PreviousLine(self.numof_flushed_lines)
+        );
     }
 
     /// return (width, height)
     pub fn size(&self) -> io::Result<(u16, u16)> {
-        (*self.termsize_getter)().map(|(tw, th)| {
-            (tw, cmp::min(th, self.height))
-        })
+        (*self.termsize_getter)().map(|(tw, th)| (tw, cmp::min(th, self.height)))
     }
 
     /// return (x, y)
@@ -390,17 +412,15 @@ impl<'a> Pane<'a> {
         let buf_height = self.linebuf.len();
         let y = self.cur_pos.1 as usize;
 
-        Ok(
-            if buf_height < pane_height {
-                // buffer lines does not fill pane height
-                0..buf_height
-            } else if buf_height <= y + pane_height {
-                // buffer lines is not enough at current pos. scroll up to fit.
-                (buf_height - pane_height)..buf_height
-            } else {
-                y..(y + pane_height)
-            }
-        )
+        Ok(if buf_height < pane_height {
+            // buffer lines does not fill pane height
+            0..buf_height
+        } else if buf_height <= y + pane_height {
+            // buffer lines is not enough at current pos. scroll up to fit.
+            (buf_height - pane_height)..buf_height
+        } else {
+            y..(y + pane_height)
+        })
     }
 
     /// return the horizontal offset that is considered pane size and string length
@@ -410,15 +430,13 @@ impl<'a> Pane<'a> {
         let margined_len = max_len + margin_right;
         let pane_width = self.size()?.0;
 
-        Ok(
-            if pane_width >= margined_len {
-                0
-            } else if next_x + pane_width <= margined_len {
-                next_x
-            } else {
-                margined_len - pane_width
-            }
-        )
+        Ok(if pane_width >= margined_len {
+            0
+        } else if next_x + pane_width <= margined_len {
+            next_x
+        } else {
+            margined_len - pane_width
+        })
     }
 
     // return actual scroll distance
@@ -466,7 +484,10 @@ impl<'a> Pane<'a> {
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
         let x = self.limit_right_x(self.cur_pos.0 + step, max_visible_line_len)?;
-        assert!(x >= self.cur_pos.0, format!("{} > {} is not pass!", x, self.cur_pos.0));
+        assert!(
+            x >= self.cur_pos.0,
+            format!("{} > {} is not pass!", x, self.cur_pos.0)
+        );
         let astep = x - self.cur_pos.0;
         self.cur_pos.0 = x;
         Ok(astep)
@@ -493,7 +514,9 @@ impl<'a> Pane<'a> {
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
-        self.cur_pos.0 = self.limit_right_x(max_visible_line_len, max_visible_line_len).unwrap();
+        self.cur_pos.0 = self
+            .limit_right_x(max_visible_line_len, max_visible_line_len)
+            .unwrap();
         Ok(self.cur_pos)
     }
 
@@ -518,7 +541,10 @@ impl<'a> Pane<'a> {
 
     pub fn set_height(&mut self, n: u16) -> io::Result<u16> {
         if n == 0 {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, "Require non-zero value"))
+            Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Require non-zero value",
+            ))
         } else {
             self.height = n;
             Ok(self.height)
@@ -527,7 +553,11 @@ impl<'a> Pane<'a> {
 
     pub fn increment_height(&mut self, n: u16) -> io::Result<u16> {
         let max = (*self.termsize_getter)()?.1;
-        let height = if self.height + n < max { self.height + n } else { max };
+        let height = if self.height + n < max {
+            self.height + n
+        } else {
+            max
+        };
         self.set_height(height)
     }
 
@@ -558,13 +588,11 @@ mod tests {
         "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
         "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
-        ];
+    ];
 
-    fn setup() {
-    }
+    fn setup() {}
 
-    fn teardown() {
-    }
+    fn teardown() {}
 
     fn texts() -> Vec<String> {
         let mut v: Vec<String> = vec![];
@@ -576,10 +604,10 @@ mod tests {
 
     #[test]
     fn test_pane_scroll() {
-        use std::io;
-        use std::{thread, time};
         use std::fs::OpenOptions;
+        use std::io;
         use std::io::BufWriter;
+        use std::{thread, time};
 
         // let w = io::stdout();
         // let mut w = w.lock();
@@ -604,8 +632,11 @@ mod tests {
         assert_eq!(pane.scroll_down(ScrollStep::Char(3)).unwrap(), 3);
         pos.1 += 3;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_down(ScrollStep::Halfpage(1)).unwrap(), size.1/2);
-        pos.1 += size.1/2;
+        assert_eq!(
+            pane.scroll_down(ScrollStep::Halfpage(1)).unwrap(),
+            size.1 / 2
+        );
+        pos.1 += size.1 / 2;
         assert_eq!(pane.position(), pos);
         assert_eq!(pane.scroll_down(ScrollStep::Page(1)).unwrap(), size.1);
         pos.1 += size.1;
@@ -624,8 +655,11 @@ mod tests {
         assert_eq!(pane.scroll_up(ScrollStep::Char(2)).unwrap(), 2);
         pos.1 -= 2;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_up(ScrollStep::Halfpage(2)).unwrap(), (size.1 * 2)/2);
-        pos.1 -= (size.1 * 2)/2;
+        assert_eq!(
+            pane.scroll_up(ScrollStep::Halfpage(2)).unwrap(),
+            (size.1 * 2) / 2
+        );
+        pos.1 -= (size.1 * 2) / 2;
         assert_eq!(pane.position(), pos);
         assert_eq!(pane.scroll_up(ScrollStep::Page(1)).unwrap(), size.1);
         pos.1 -= size.1;
@@ -661,4 +695,3 @@ mod tests {
         pane.quit();
     }
 }
-
