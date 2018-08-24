@@ -1,16 +1,50 @@
 extern crate ctrlc;
 extern crate termion;
+extern crate termios;
 
 use regex::Regex;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use std::sync::mpsc;
 use std::thread::spawn;
 
 use keybind;
-use keyevt::{KeyEventHandler, KeyOp};
+use event::PeepEvent;
 use pane::{Pane, ScrollStep};
 use tty;
+
+
+pub struct KeyEventHandler<'a> {
+    istream: &'a mut Read,
+    parser: &'a mut keybind::KeyParser,
+    oldstat: Box<termios::Termios>,
+}
+
+impl<'a> Drop for KeyEventHandler<'a> {
+    fn drop(&mut self) {
+        tty::echo_on(&*self.oldstat);
+    }
+}
+
+impl<'a> KeyEventHandler<'a> {
+    pub fn new(istream: &'a mut Read, parser: &'a mut keybind::KeyParser) -> Self {
+        KeyEventHandler {
+            istream: istream,
+            parser: parser,
+            oldstat: Box::new(tty::echo_off()),
+        }
+    }
+
+    pub fn read(&mut self) -> Option<PeepEvent> {
+        for b in self.istream.bytes().filter_map(|v| v.ok()) {
+            let v = self.parser.parse(b as char);
+            if v.is_some() {
+                return v;
+            }
+        }
+        None
+    }
+}
 
 #[derive(Debug)]
 pub struct App {
@@ -71,7 +105,7 @@ impl App {
         // Ctrl-C handler
         ctrlc::set_handler(move || {
             // receive SIGINT
-            sig_sender.send(KeyOp::SigInt).unwrap();
+            sig_sender.send(PeepEvent::SigInt).unwrap();
         }).expect("Error setting ctrl-c handler");
 
         let mut pane = Pane::new(&mut writer);
@@ -91,7 +125,7 @@ impl App {
                 match keh.read() {
                     Some(keyop) => {
                         sender.send(keyop.clone()).unwrap();
-                        if keyop == KeyOp::Quit {
+                        if keyop == PeepEvent::Quit {
                             break;
                         }
                     }
@@ -103,7 +137,7 @@ impl App {
         // app loop
         loop {
             if let Ok(keyop) = reciever.recv() {
-                if keyop == KeyOp::SigInt {
+                if keyop == PeepEvent::SigInt {
                     // receive SIGINT
                     // ring a bel
                     pane.set_message(Some("\x07"));
@@ -111,7 +145,7 @@ impl App {
                     pane.set_message(None);
                 } else {
                     self.handle(&keyop, &mut pane, &linebuf)?;
-                    if keyop == KeyOp::Quit {
+                    if keyop == PeepEvent::Quit {
                         break;
                     }
                 }
@@ -121,86 +155,86 @@ impl App {
         Ok(())
     }
 
-    fn handle(&mut self, keyop: &KeyOp, pane: &mut Pane, linebuf: &[String]) -> io::Result<()> {
+    fn handle(&mut self, keyop: &PeepEvent, pane: &mut Pane, linebuf: &[String]) -> io::Result<()> {
         match keyop {
-            &KeyOp::MoveDown(n) => {
+            &PeepEvent::MoveDown(n) => {
                 pane.scroll_down(ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveUp(n) => {
+            &PeepEvent::MoveUp(n) => {
                 pane.scroll_up(ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveLeft(n) => {
+            &PeepEvent::MoveLeft(n) => {
                 pane.scroll_left(ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveRight(n) => {
+            &PeepEvent::MoveRight(n) => {
                 pane.scroll_right(ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveDownHalfPages(n) => {
+            &PeepEvent::MoveDownHalfPages(n) => {
                 pane.scroll_down(ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveUpHalfPages(n) => {
+            &PeepEvent::MoveUpHalfPages(n) => {
                 pane.scroll_up(ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveLeftHalfPages(n) => {
+            &PeepEvent::MoveLeftHalfPages(n) => {
                 pane.scroll_left(ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveRightHalfPages(n) => {
+            &PeepEvent::MoveRightHalfPages(n) => {
                 pane.scroll_right(ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveDownPages(n) => {
+            &PeepEvent::MoveDownPages(n) => {
                 pane.scroll_down(ScrollStep::Page(n))?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveUpPages(n) => {
+            &PeepEvent::MoveUpPages(n) => {
                 pane.scroll_up(ScrollStep::Page(n))?;
                 pane.refresh()?;
             }
-            KeyOp::MoveToHeadOfLine => {
+            PeepEvent::MoveToHeadOfLine => {
                 pane.goto_head_of_line()?;
                 pane.refresh()?;
             }
-            KeyOp::MoveToEndOfLine => {
+            PeepEvent::MoveToEndOfLine => {
                 pane.goto_tail_of_line()?;
                 pane.refresh()?;
             }
-            KeyOp::MoveToTopOfLines => {
+            PeepEvent::MoveToTopOfLines => {
                 pane.goto_top_of_lines()?;
                 pane.refresh()?;
             }
-            KeyOp::MoveToBottomOfLines => {
+            PeepEvent::MoveToBottomOfLines => {
                 pane.goto_bottom_of_lines()?;
                 pane.refresh()?;
             }
-            &KeyOp::MoveToLineNumber(n) => {
+            &PeepEvent::MoveToLineNumber(n) => {
                 pane.goto_absolute_line(n)?;
                 pane.refresh()?;
             }
-            &KeyOp::ToggleLineNumberPrinting => {
+            &PeepEvent::ToggleLineNumberPrinting => {
                 self.show_linenumber = !self.show_linenumber;
                 pane.show_line_number(self.show_linenumber);
                 pane.refresh()?;
             }
-            &KeyOp::IncrementLines(n) => {
+            &PeepEvent::IncrementLines(n) => {
                 pane.increment_height(n)?;
                 pane.refresh()?;
             }
-            &KeyOp::DecrementLines(n) => {
+            &PeepEvent::DecrementLines(n) => {
                 pane.decrement_height(n)?;
                 pane.refresh()?;
             }
-            &KeyOp::SetNumOfLines(n) => {
+            &PeepEvent::SetNumOfLines(n) => {
                 pane.set_height(n)?;
                 pane.refresh()?;
             }
-            KeyOp::SearchIncremental(s) => {
+            PeepEvent::SearchIncremental(s) => {
                 pane.set_message(Some(&format!("/{}", s)));
                 // pane.set_highlight_word(Some(&s));
                 let _ = pane.set_highlight_regex(Some(&s));
@@ -216,11 +250,11 @@ impl App {
 
                 pane.refresh()?;
             }
-            KeyOp::SearchTrigger => {
+            PeepEvent::SearchTrigger => {
                 pane.set_message(None);
                 pane.refresh()?;
             }
-            KeyOp::SearchNext => {
+            PeepEvent::SearchNext => {
                 let cur_pos = pane.position();
                 let next_pos = (
                     cur_pos.0,
@@ -244,7 +278,7 @@ impl App {
                 pane.set_message(None);
                 pane.refresh()?;
             }
-            KeyOp::SearchPrev => {
+            PeepEvent::SearchPrev => {
                 let cur_pos = pane.position();
                 let next_pos = (cur_pos.0, if cur_pos.1 == 0 { 0 } else { cur_pos.1 - 1 });
 
@@ -261,16 +295,16 @@ impl App {
                 pane.set_message(None);
                 pane.refresh()?;
             }
-            KeyOp::Message(s) => {
+            PeepEvent::Message(s) => {
                 pane.set_message(s.as_ref().map(|x| &**x));
                 pane.refresh()?;
             }
-            KeyOp::Cancel => {
+            PeepEvent::Cancel => {
                 pane.set_message(None);
                 pane.set_highlight_word(None);
                 pane.refresh()?;
             }
-            KeyOp::Quit => {
+            PeepEvent::Quit => {
                 pane.quit();
             }
             _ => {}

@@ -1,8 +1,8 @@
 /// Key Bind Parser
-use keyevt::KeyOp;
+use event::PeepEvent;
 
 pub trait KeyParser {
-    fn parse(&mut self, c: char) -> Option<KeyOp>;
+    fn parse(&mut self, c: char) -> Option<PeepEvent>;
 }
 
 pub mod default {
@@ -29,7 +29,7 @@ pub mod default {
         state: State,
         number: u16,
         wip_keys: String,
-        cmap: HashMap<&'a str, KeyOp>,
+        cmap: HashMap<&'a str, PeepEvent>,
     }
 
     impl<'a> KeyBind<'a> {
@@ -44,29 +44,29 @@ pub mod default {
             kb
         }
 
-        fn default_command_table() -> HashMap<&'a str, KeyOp> {
-            // let mut default: HashMap<&str, KeyOp> = [
+        fn default_command_table() -> HashMap<&'a str, PeepEvent> {
+            // let mut default: HashMap<&str, PeepEvent> = [
             [
-                ("j", KeyOp::MoveDown(1)),
-                ("k", KeyOp::MoveUp(1)),
-                ("h", KeyOp::MoveLeft(1)),
-                ("l", KeyOp::MoveRight(1)),
-                ("d", KeyOp::MoveDownHalfPages(1)),
-                ("u", KeyOp::MoveUpHalfPages(1)),
-                ("H", KeyOp::MoveLeftHalfPages(1)),
-                ("L", KeyOp::MoveRightHalfPages(1)),
-                ("f", KeyOp::MoveDownPages(1)),
-                ("b", KeyOp::MoveUpPages(1)),
-                ("0", KeyOp::MoveToHeadOfLine),
-                ("$", KeyOp::MoveToEndOfLine),
-                ("g", KeyOp::MoveToTopOfLines),
-                ("G", KeyOp::MoveToBottomOfLines),
-                ("#", KeyOp::ToggleLineNumberPrinting),
-                ("-", KeyOp::DecrementLines(1)),
-                ("+", KeyOp::IncrementLines(1)),
-                ("n", KeyOp::SearchNext),
-                ("N", KeyOp::SearchPrev),
-                ("q", KeyOp::Quit),
+                ("j", PeepEvent::MoveDown(1)),
+                ("k", PeepEvent::MoveUp(1)),
+                ("h", PeepEvent::MoveLeft(1)),
+                ("l", PeepEvent::MoveRight(1)),
+                ("d", PeepEvent::MoveDownHalfPages(1)),
+                ("u", PeepEvent::MoveUpHalfPages(1)),
+                ("H", PeepEvent::MoveLeftHalfPages(1)),
+                ("L", PeepEvent::MoveRightHalfPages(1)),
+                ("f", PeepEvent::MoveDownPages(1)),
+                ("b", PeepEvent::MoveUpPages(1)),
+                ("0", PeepEvent::MoveToHeadOfLine),
+                ("$", PeepEvent::MoveToEndOfLine),
+                ("g", PeepEvent::MoveToTopOfLines),
+                ("G", PeepEvent::MoveToBottomOfLines),
+                ("#", PeepEvent::ToggleLineNumberPrinting),
+                ("-", PeepEvent::DecrementLines(1)),
+                ("+", PeepEvent::IncrementLines(1)),
+                ("n", PeepEvent::SearchNext),
+                ("N", PeepEvent::SearchPrev),
+                ("q", PeepEvent::Quit),
             ]
                 .iter()
                 .cloned()
@@ -93,15 +93,15 @@ pub mod default {
             self.wip_keys.clear();
         }
 
-        fn action_ready(&mut self, c: char) -> Option<KeyOp> {
+        fn action_ready(&mut self, c: char) -> Option<PeepEvent> {
             match c {
                 '/' => {
                     self.trans_to_incsearching();
-                    Some(KeyOp::SearchIncremental("".to_owned()))
+                    Some(PeepEvent::SearchIncremental("".to_owned()))
                 }
                 '1'...'9' => {
                     self.trans_to_numbering(c);
-                    // Some(KeyOp::Message(Some(self.number.to_string())))
+                    // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
                 c if !c.is_control() => {
@@ -109,43 +109,43 @@ pub mod default {
                     self.action_commanding(c)
                 }
                 // ESC
-                '\x1b' => Some(KeyOp::Cancel),
+                '\x1b' => Some(PeepEvent::Cancel),
                 _ => None,
             }
         }
-        fn action_incsearching(&mut self, c: char) -> Option<KeyOp> {
+        fn action_incsearching(&mut self, c: char) -> Option<PeepEvent> {
             match c {
                 c if !c.is_control() => {
                     self.wip_keys.push(c);
-                    Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
+                    Some(PeepEvent::SearchIncremental(format!("{}", self.wip_keys)))
                 }
                 '\x08' | '\x7f' => {
                     // BackSpace, Delete
                     if self.wip_keys.pop().is_none() {
                         self.trans_to_ready();
-                        Some(KeyOp::Cancel)
+                        Some(PeepEvent::Cancel)
                     } else {
-                        Some(KeyOp::SearchIncremental(format!("{}", self.wip_keys)))
+                        Some(PeepEvent::SearchIncremental(format!("{}", self.wip_keys)))
                     }
                 }
                 '\n' => {
                     // LF
                     self.trans_to_ready();
-                    Some(KeyOp::SearchTrigger)
+                    Some(PeepEvent::SearchTrigger)
                 }
                 '\x1b' => {
                     // ESC -> Cancel
                     self.trans_to_ready();
-                    Some(KeyOp::Cancel)
+                    Some(PeepEvent::Cancel)
                 }
                 _ => None,
             }
         }
-        fn action_numbering(&mut self, c: char) -> Option<KeyOp> {
+        fn action_numbering(&mut self, c: char) -> Option<PeepEvent> {
             match c {
                 '0'...'9' => {
                     self.number = self.number * 10 + c.to_digit(10).unwrap() as u16;
-                    // Some(KeyOp::Message(Some(self.number.to_string())))
+                    // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
                 c if !c.is_control() => {
@@ -156,12 +156,12 @@ pub mod default {
                     // ESC and LF -> Cancel
                     self.trans_to_ready();
                     None
-                    // Some(KeyOp::Message(None))
+                    // Some(PeepEvent::Message(None))
                 }
                 _ => None,
             }
         }
-        fn action_commanding(&mut self, c: char) -> Option<KeyOp> {
+        fn action_commanding(&mut self, c: char) -> Option<PeepEvent> {
             let mut needs_trans = false;
             let op = match c {
                 c if !c.is_control() => {
@@ -178,14 +178,14 @@ pub mod default {
                             } else {
                                 // not exist => cancel
                                 needs_trans = true;
-                                Some(KeyOp::Message(None))
+                                Some(PeepEvent::Message(None))
                             }
                         }
                     }
                 }
                 _ => {
                     needs_trans = true;
-                    Some(KeyOp::Message(None))
+                    Some(PeepEvent::Message(None))
                 }
             };
             if needs_trans {
@@ -194,35 +194,35 @@ pub mod default {
             op
         }
 
-        fn combine_command(&self, op: KeyOp) -> KeyOp {
+        fn combine_command(&self, op: PeepEvent) -> PeepEvent {
             let valid_num = |n| if n == 0 { 1 } else { n };
             match op {
-                KeyOp::MoveDown(_) => KeyOp::MoveDown(valid_num(self.number)),
-                KeyOp::MoveUp(_) => KeyOp::MoveUp(valid_num(self.number)),
-                KeyOp::MoveLeft(_) => KeyOp::MoveLeft(valid_num(self.number)),
-                KeyOp::MoveRight(_) => KeyOp::MoveRight(valid_num(self.number)),
-                KeyOp::MoveDownHalfPages(_) => KeyOp::MoveDownHalfPages(valid_num(self.number)),
-                KeyOp::MoveUpHalfPages(_) => KeyOp::MoveUpHalfPages(valid_num(self.number)),
-                KeyOp::MoveLeftHalfPages(_) => KeyOp::MoveLeftHalfPages(valid_num(self.number)),
-                KeyOp::MoveRightHalfPages(_) => KeyOp::MoveRightHalfPages(valid_num(self.number)),
-                KeyOp::MoveDownPages(_) => KeyOp::MoveDownPages(valid_num(self.number)),
-                KeyOp::MoveUpPages(_) => KeyOp::MoveUpPages(valid_num(self.number)),
-                KeyOp::MoveToTopOfLines | KeyOp::MoveToBottomOfLines => {
+                PeepEvent::MoveDown(_) => PeepEvent::MoveDown(valid_num(self.number)),
+                PeepEvent::MoveUp(_) => PeepEvent::MoveUp(valid_num(self.number)),
+                PeepEvent::MoveLeft(_) => PeepEvent::MoveLeft(valid_num(self.number)),
+                PeepEvent::MoveRight(_) => PeepEvent::MoveRight(valid_num(self.number)),
+                PeepEvent::MoveDownHalfPages(_) => PeepEvent::MoveDownHalfPages(valid_num(self.number)),
+                PeepEvent::MoveUpHalfPages(_) => PeepEvent::MoveUpHalfPages(valid_num(self.number)),
+                PeepEvent::MoveLeftHalfPages(_) => PeepEvent::MoveLeftHalfPages(valid_num(self.number)),
+                PeepEvent::MoveRightHalfPages(_) => PeepEvent::MoveRightHalfPages(valid_num(self.number)),
+                PeepEvent::MoveDownPages(_) => PeepEvent::MoveDownPages(valid_num(self.number)),
+                PeepEvent::MoveUpPages(_) => PeepEvent::MoveUpPages(valid_num(self.number)),
+                PeepEvent::MoveToTopOfLines | PeepEvent::MoveToBottomOfLines => {
                     if self.number == 0 {
                         op
                     } else {
-                        KeyOp::MoveToLineNumber(self.number - 1)
+                        PeepEvent::MoveToLineNumber(self.number - 1)
                     }
                 }
-                KeyOp::MoveToLineNumber(_) => KeyOp::MoveToLineNumber(valid_num(self.number)),
-                KeyOp::IncrementLines(_) => KeyOp::IncrementLines(valid_num(self.number)),
-                KeyOp::DecrementLines(_) => KeyOp::DecrementLines(valid_num(self.number)),
-                KeyOp::SetNumOfLines(_) => KeyOp::SetNumOfLines(valid_num(self.number)),
+                PeepEvent::MoveToLineNumber(_) => PeepEvent::MoveToLineNumber(valid_num(self.number)),
+                PeepEvent::IncrementLines(_) => PeepEvent::IncrementLines(valid_num(self.number)),
+                PeepEvent::DecrementLines(_) => PeepEvent::DecrementLines(valid_num(self.number)),
+                PeepEvent::SetNumOfLines(_) => PeepEvent::SetNumOfLines(valid_num(self.number)),
                 _ => op,
             }
         }
 
-        fn trans(&mut self, c: char) -> Option<KeyOp> {
+        fn trans(&mut self, c: char) -> Option<PeepEvent> {
             match self.state {
                 State::Ready => self.action_ready(c),
                 State::IncSearching => self.action_incsearching(c),
@@ -233,7 +233,7 @@ pub mod default {
     }
 
     impl<'a> KeyParser for KeyBind<'a> {
-        fn parse(&mut self, c: char) -> Option<KeyOp> {
+        fn parse(&mut self, c: char) -> Option<PeepEvent> {
             self.trans(c)
         }
     }
@@ -242,32 +242,32 @@ pub mod default {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keyevt::KeyOp;
+    use event::PeepEvent;
 
     #[test]
     fn test_keybind_command() {
         let mut kb = default::KeyBind::new();
 
         // normal commands
-        assert_eq!(kb.parse('j'), Some(KeyOp::MoveDown(1)));
-        assert_eq!(kb.parse('k'), Some(KeyOp::MoveUp(1)));
-        assert_eq!(kb.parse('h'), Some(KeyOp::MoveLeft(1)));
-        assert_eq!(kb.parse('l'), Some(KeyOp::MoveRight(1)));
-        assert_eq!(kb.parse('d'), Some(KeyOp::MoveDownHalfPages(1)));
-        assert_eq!(kb.parse('u'), Some(KeyOp::MoveUpHalfPages(1)));
-        assert_eq!(kb.parse('f'), Some(KeyOp::MoveDownPages(1)));
-        assert_eq!(kb.parse('b'), Some(KeyOp::MoveUpPages(1)));
-        assert_eq!(kb.parse('0'), Some(KeyOp::MoveToHeadOfLine));
-        assert_eq!(kb.parse('$'), Some(KeyOp::MoveToEndOfLine));
-        assert_eq!(kb.parse('g'), Some(KeyOp::MoveToTopOfLines));
-        assert_eq!(kb.parse('G'), Some(KeyOp::MoveToBottomOfLines));
-        assert_eq!(kb.parse('-'), Some(KeyOp::DecrementLines(1)));
-        assert_eq!(kb.parse('+'), Some(KeyOp::IncrementLines(1)));
-        assert_eq!(kb.parse('n'), Some(KeyOp::SearchNext));
-        assert_eq!(kb.parse('N'), Some(KeyOp::SearchPrev));
-        assert_eq!(kb.parse('q'), Some(KeyOp::Quit));
-        assert_eq!(kb.parse('#'), Some(KeyOp::ToggleLineNumberPrinting));
-        assert_eq!(kb.parse('\x1b'), Some(KeyOp::Cancel));
+        assert_eq!(kb.parse('j'), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse('k'), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(1)));
+        assert_eq!(kb.parse('l'), Some(PeepEvent::MoveRight(1)));
+        assert_eq!(kb.parse('d'), Some(PeepEvent::MoveDownHalfPages(1)));
+        assert_eq!(kb.parse('u'), Some(PeepEvent::MoveUpHalfPages(1)));
+        assert_eq!(kb.parse('f'), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse('b'), Some(PeepEvent::MoveUpPages(1)));
+        assert_eq!(kb.parse('0'), Some(PeepEvent::MoveToHeadOfLine));
+        assert_eq!(kb.parse('$'), Some(PeepEvent::MoveToEndOfLine));
+        assert_eq!(kb.parse('g'), Some(PeepEvent::MoveToTopOfLines));
+        assert_eq!(kb.parse('G'), Some(PeepEvent::MoveToBottomOfLines));
+        assert_eq!(kb.parse('-'), Some(PeepEvent::DecrementLines(1)));
+        assert_eq!(kb.parse('+'), Some(PeepEvent::IncrementLines(1)));
+        assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
+        assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
+        assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
+        assert_eq!(kb.parse('#'), Some(PeepEvent::ToggleLineNumberPrinting));
+        assert_eq!(kb.parse('\x1b'), Some(PeepEvent::Cancel));
     }
 
     #[test]
@@ -284,11 +284,11 @@ mod tests {
         assert_eq!(kb.parse('\x1b'), None);
 
         assert_eq!(kb.parse('2'), None);
-        assert_eq!(kb.parse('j'), Some(KeyOp::MoveDown(2)));
+        assert_eq!(kb.parse('j'), Some(PeepEvent::MoveDown(2)));
 
         assert_eq!(kb.parse('1'), None);
         assert_eq!(kb.parse('0'), None);
-        assert_eq!(kb.parse('h'), Some(KeyOp::MoveLeft(10)));
+        assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(10)));
     }
 
     #[test]
@@ -296,55 +296,55 @@ mod tests {
         let mut kb = default::KeyBind::new();
 
         // search commands
-        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('w'),
-            Some(KeyOp::SearchIncremental("w".to_owned()))
+            Some(PeepEvent::SearchIncremental("w".to_owned()))
         );
         assert_eq!(
             kb.parse('o'),
-            Some(KeyOp::SearchIncremental("wo".to_owned()))
+            Some(PeepEvent::SearchIncremental("wo".to_owned()))
         );
         assert_eq!(
             kb.parse('r'),
-            Some(KeyOp::SearchIncremental("wor".to_owned()))
+            Some(PeepEvent::SearchIncremental("wor".to_owned()))
         );
         assert_eq!(
             kb.parse('d'),
-            Some(KeyOp::SearchIncremental("word".to_owned()))
+            Some(PeepEvent::SearchIncremental("word".to_owned()))
         );
-        assert_eq!(kb.parse('\n'), Some(KeyOp::SearchTrigger));
+        assert_eq!(kb.parse('\n'), Some(PeepEvent::SearchTrigger));
 
-        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('a'),
-            Some(KeyOp::SearchIncremental("a".to_owned()))
+            Some(PeepEvent::SearchIncremental("a".to_owned()))
         );
         assert_eq!(
             kb.parse('b'),
-            Some(KeyOp::SearchIncremental("ab".to_owned()))
+            Some(PeepEvent::SearchIncremental("ab".to_owned()))
         );
         assert_eq!(
             kb.parse('\x08'),
-            Some(KeyOp::SearchIncremental("a".to_owned()))
+            Some(PeepEvent::SearchIncremental("a".to_owned()))
         );
         assert_eq!(
             kb.parse('\x08'),
-            Some(KeyOp::SearchIncremental("".to_owned()))
+            Some(PeepEvent::SearchIncremental("".to_owned()))
         );
-        assert_eq!(kb.parse('\x08'), Some(KeyOp::Cancel));
+        assert_eq!(kb.parse('\x08'), Some(PeepEvent::Cancel));
 
-        assert_eq!(kb.parse('/'), Some(KeyOp::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
         assert_eq!(
             kb.parse('w'),
-            Some(KeyOp::SearchIncremental("w".to_owned()))
+            Some(PeepEvent::SearchIncremental("w".to_owned()))
         );
         assert_eq!(
             kb.parse('o'),
-            Some(KeyOp::SearchIncremental("wo".to_owned()))
+            Some(PeepEvent::SearchIncremental("wo".to_owned()))
         );
-        assert_eq!(kb.parse('\n'), Some(KeyOp::SearchTrigger));
-        assert_eq!(kb.parse('n'), Some(KeyOp::SearchNext));
-        assert_eq!(kb.parse('N'), Some(KeyOp::SearchPrev));
+        assert_eq!(kb.parse('\n'), Some(PeepEvent::SearchTrigger));
+        assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
+        assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
     }
 }
