@@ -30,6 +30,7 @@ impl<'t> Match<'t> {
     }
 }
 
+#[derive(Debug)]
 struct MatchIter<'t> {
     matches: Vec<Match<'t>>,
     index: usize,
@@ -98,7 +99,6 @@ impl<'t> Search<'t> for PlaneSearcher {
         }
     }
 }
-
 
 struct RegexSearcher {
     pat: Regex,
@@ -171,41 +171,46 @@ mod tests {
 
         let mut searcher = PlaneSearcher::new();
         assert_eq!(searcher.update_pattern(&pat).unwrap(), ());
-
         assert_eq!(
             searcher.find(&text).unwrap(),
-            Match {
-                text: &pat,
-                start: 1,
-                end: 4
-            }
+            Match { text: &pat, start: 1, end: 4 }
         );
-
         let mut matches = searcher.find_iter(&text);
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &pat,
-                start: 1,
-                end: 4
-            }
+            Match { text: &pat, start: 1, end: 4 }
         );
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &pat,
-                start: 4,
-                end: 7
-            }
+            Match { text: &pat, start: 4, end: 7 }
         );
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &pat,
-                start: 10,
-                end: 13
-            }
+            Match { text: &pat, start: 10, end: 13 }
         );
+        assert!(matches.next().is_none());
+
+        let pat = "";
+        let text = "xabcabcwowabc";
+        assert_eq!(searcher.update_pattern(&pat).unwrap(), ());
+        assert_eq!(
+            searcher.find(&text).unwrap(),
+            Match { text: &pat, start: 0, end: 0 }
+        );
+        let mut matches = searcher.find_iter(&text);
+        for i in 0..text.len() {
+            assert_eq!(
+                matches.next().unwrap(),
+                Match { text: &pat, start: i, end: i }
+            );
+        }
+
+        let pat = "abc";
+        let text = "";
+        assert_eq!(searcher.update_pattern(&pat).unwrap(), ());
+        assert!(searcher.find(&text).is_none());
+        let mut matches = searcher.find_iter(&text);
+        assert!(matches.next().is_none());
     }
 
     #[test]
@@ -219,37 +224,43 @@ mod tests {
 
         assert_eq!(
             searcher.find(&text).unwrap(),
-            Match {
-                text: &expects,
-                start: 1,
-                end: 4
-            }
+            Match { text: &expects, start: 1, end: 4 }
         );
 
         let mut matches = searcher.find_iter(&text);
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &expects,
-                start: 1,
-                end: 4
-            }
+            Match { text: &expects, start: 1, end: 4 }
         );
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &expects,
-                start: 4,
-                end: 7
-            }
+            Match { text: &expects, start: 4, end: 7 }
         );
         assert_eq!(
             matches.next().unwrap(),
-            Match {
-                text: &expects,
-                start: 10,
-                end: 13
-            }
+            Match { text: &expects, start: 10, end: 13 }
         );
+
+        let pat = "";
+        let text = "xabcabcwowabc";
+        assert_eq!(searcher.update_pattern(&pat).unwrap(), ());
+        assert_eq!(
+            searcher.find(&text).unwrap(),
+            Match { text: &pat, start: 0, end: 0 }
+        );
+        let mut matches = searcher.find_iter(&text);
+        for i in 0..text.len() {
+            assert_eq!(
+                matches.next().unwrap(),
+                Match { text: &pat, start: i, end: i }
+            );
+        }
+
+        let pat = r"a\wc";
+        let text = "";
+        assert_eq!(searcher.update_pattern(&pat).unwrap(), ());
+        assert!(searcher.find(&text).is_none());
+        let mut matches = searcher.find_iter(&text);
+        assert!(matches.next().is_none());
     }
 }
