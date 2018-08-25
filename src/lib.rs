@@ -8,4 +8,5 @@ pub mod csi;
 pub mod event;
 pub mod keybind;
 pub mod pane;
+pub mod search;
 pub mod tty;
