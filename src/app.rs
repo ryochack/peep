@@ -102,7 +102,7 @@ impl App {
         tty::switch_stdin_to_tty();
 
         let writer = io::stdout();
-        let mut writer = writer.lock();
+        let writer = writer.lock();
 
         let (sender, reciever) = mpsc::channel();
         let sig_sender = sender.clone();
@@ -115,7 +115,7 @@ impl App {
 
         self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new()));
 
-        let mut pane = Pane::new(&mut writer);
+        let mut pane = Pane::new(Box::new(RefCell::new(writer)));
         pane.load(self.linebuf.clone());
         pane.set_highlight_searcher(self.searcher.clone());
         pane.show_line_number(self.show_linenumber);

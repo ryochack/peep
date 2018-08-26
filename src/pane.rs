@@ -27,7 +27,7 @@ impl fmt::Display for ExtendMark {
 
 pub struct Pane<'a> {
     linebuf: Rc<RefCell<Vec<String>>>,
-    writer: &'a mut Write,
+    writer: Box<RefCell<'a + Write>>,
     height: u16,
     numof_flushed_lines: u16,
     // cur_pos: (x, y)
@@ -57,8 +57,8 @@ impl ScrollStep {
 }
 
 impl<'a> Pane<'a> {
-    pub fn new(w: &'a mut Write) -> Self {
-        let mut pane = Pane {
+    pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
+        let pane = Pane {
             linebuf: Rc::new(RefCell::new(Vec::new())),
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
@@ -88,11 +88,11 @@ impl<'a> Pane<'a> {
         self.cur_pos = (0, 0);
     }
 
-    fn flush(&mut self) {
-        self.writer.flush().unwrap();
+    fn flush(&self) {
+        self.writer.borrow_mut().flush().unwrap();
     }
 
-    fn sweep(&mut self) {
+    fn sweep(&self) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
         for _ in 0..self.height {
@@ -101,7 +101,7 @@ impl<'a> Pane<'a> {
         }
         s.push_str(&format!("{}", termion::clear::CurrentLine));
         s.push_str(&format!("{}", cursor_ext::PreviousLine(self.height as u16)));
-        self.writer.write(s.as_bytes()).unwrap();
+        self.writer.borrow_mut().write(s.as_bytes()).unwrap();
     }
 
     /// Highlight line with the highlight word
@@ -282,15 +282,15 @@ impl<'a> Pane<'a> {
 
         self.return_home();
         self.sweep();
-        self.writer.write(block.as_bytes()).unwrap();
+        self.writer.borrow_mut().write(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
         Ok(())
     }
 
-    pub fn quit(&mut self) {
-        write!(self.writer, "{}", termion::clear::CurrentLine);
-        writeln!(self.writer);
+    pub fn quit(&self) {
+        write!(self.writer.borrow_mut(), "{}", termion::clear::CurrentLine);
+        writeln!(self.writer.borrow_mut());
         self.flush();
     }
 
@@ -314,14 +314,14 @@ impl<'a> Pane<'a> {
         }
     }
 
-    fn move_to_message_line(&mut self) {
+    fn move_to_message_line(&self) {
         let ph = self.size().unwrap_or((1, 1)).1;
-        write!(self.writer, "{}", cursor_ext::NextLine(ph));
+        write!(self.writer.borrow_mut(), "{}", cursor_ext::NextLine(ph));
     }
 
-    fn return_home(&mut self) {
+    fn return_home(&self) {
         write!(
-            self.writer,
+            self.writer.borrow_mut(),
             "{}",
             cursor_ext::PreviousLine(self.numof_flushed_lines)
         );
