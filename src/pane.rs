@@ -339,7 +339,14 @@ impl<'a> Pane<'a> {
 
     /// return the end of y that is considered buffer lines and window size
     fn limit_bottom_y(&self) -> io::Result<u16> {
-        Ok(self.linebuf.borrow().len() as u16 - self.size()?.1)
+        let linebuf_height = self.linebuf.borrow().len() as u16;
+        let pane_height = self.size()?.1;
+
+        Ok(if linebuf_height > pane_height {
+                linebuf_height - pane_height
+            } else {
+                linebuf_height
+            })
     }
 
     /// return range of visible lines
