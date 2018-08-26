@@ -95,12 +95,12 @@ impl<'a> Pane<'a> {
     fn sweep(&self) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
-        for _ in 0..self.height {
+        for _ in 0..self.numof_flushed_lines {
             s.push_str(&format!("{}", termion::clear::CurrentLine));
             s.push_str("\n");
         }
         s.push_str(&format!("{}", termion::clear::CurrentLine));
-        s.push_str(&format!("{}", cursor_ext::PreviousLine(self.height as u16)));
+        s.push_str(&format!("{}", cursor_ext::PreviousLine(self.numof_flushed_lines as u16)));
         self.writer.borrow_mut().write(s.as_bytes()).unwrap();
     }
 
@@ -505,7 +505,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn decrement_height(&mut self, n: u16) -> io::Result<u16> {
-        let height = if self.height > n { self.height - n } else { 0 };
+        let height = if self.height > n { self.height - n } else { 1 };
         self.set_height(height)
     }
 }
