@@ -2,15 +2,17 @@ extern crate ctrlc;
 extern crate termion;
 extern crate termios;
 
-use regex::Regex;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 use std::sync::mpsc;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::thread::spawn;
 
 use keybind;
 use event::PeepEvent;
 use pane::{Pane, ScrollStep};
+use search;
 use tty;
 
 
@@ -46,11 +48,12 @@ impl<'a> KeyEventHandler<'a> {
     }
 }
 
-#[derive(Debug)]
 pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
     file_path: String,
+    searcher: Rc<RefCell<search::Search>>,
+    linebuf: Rc<RefCell<Vec<String>>>,
 }
 
 impl App {
@@ -59,11 +62,13 @@ impl App {
             show_linenumber: false,
             nlines: 5,
             file_path: String::new(),
+            searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
+            linebuf: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
-    fn read_buffer(&mut self) -> io::Result<(Vec<String>)> {
-        let mut linebuf: Vec<String> = Vec::new();
+    fn read_buffer(&mut self) -> io::Result<()> {
+        // let mut linebuf: Vec<String> = Vec::new();
         if self.file_path == "-" {
             // read from stdin if pipe
             let inp = io::stdin();
@@ -73,25 +78,25 @@ impl App {
             }
             let inp = inp.lock();
             for v in inp.lines().map(|v| v.unwrap()) {
-                linebuf.push(v);
+                self.linebuf.borrow_mut().push(v);
             }
         } else {
             // read from file
             if let Ok(file) = File::open(&self.file_path) {
                 let mut bufreader = BufReader::new(file);
                 for v in bufreader.lines().map(|v| v.unwrap()) {
-                    linebuf.push(v);
+                    self.linebuf.borrow_mut().push(v);
                 }
             } else {
                 return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
             }
         }
-        Ok(linebuf)
+        Ok(())
     }
 
     pub fn run(&mut self, path: &str) -> io::Result<()> {
         self.file_path = path.to_owned();
-        let linebuf = self.read_buffer()?;
+        self.read_buffer()?;
 
         // to input key from stdin when pipe is enable.
         tty::switch_stdin_to_tty();
@@ -108,8 +113,11 @@ impl App {
             sig_sender.send(PeepEvent::SigInt).unwrap();
         }).expect("Error setting ctrl-c handler");
 
+        self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new()));
+
         let mut pane = Pane::new(&mut writer);
-        pane.load(&linebuf);
+        pane.load(self.linebuf.clone());
+        pane.set_highlight_searcher(self.searcher.clone());
         pane.show_line_number(self.show_linenumber);
         pane.set_height(self.nlines)?;
         pane.refresh()?;
@@ -144,18 +152,17 @@ impl App {
                     pane.refresh()?;
                     pane.set_message(None);
                 } else {
-                    self.handle(&keyop, &mut pane, &linebuf)?;
+                    self.handle(&keyop, &mut pane)?;
                     if keyop == PeepEvent::Quit {
                         break;
                     }
                 }
             }
         }
-
         Ok(())
     }
 
-    fn handle(&mut self, keyop: &PeepEvent, pane: &mut Pane, linebuf: &[String]) -> io::Result<()> {
+    fn handle(&mut self, keyop: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
         match keyop {
             &PeepEvent::MoveDown(n) => {
                 pane.scroll_down(ScrollStep::Char(n))?;
@@ -236,18 +243,16 @@ impl App {
             }
             PeepEvent::SearchIncremental(s) => {
                 pane.set_message(Some(&format!("/{}", s)));
-                // pane.set_highlight_word(Some(&s));
-                let _ = pane.set_highlight_regex(Some(&s));
-
-                // if let Some(pos) = self.search_by_str(linebuf, pane.position(), &s, false) {
-                //     pane.goto_absolute_line(pos.1)?;
-                // }
-
-                let hlpat = pane.ref_highlight_regex().to_owned();
-                if let Some(pos) = self.search_by_regex(linebuf, pane.position(), &hlpat, false) {
-                    pane.goto_absolute_line(pos.1)?;
+                if s.is_empty() {
+                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    pane.show_highlight(false);
+                } else {
+                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    if let Some(pos) = self.search(pane.position()) {
+                        pane.goto_absolute_line(pos.1)?;
+                    }
+                    pane.show_highlight(true);
                 }
-
                 pane.refresh()?;
             }
             PeepEvent::SearchTrigger => {
@@ -258,23 +263,22 @@ impl App {
                 let cur_pos = pane.position();
                 let next_pos = (
                     cur_pos.0,
-                    if cur_pos.1 == linebuf.len() as u16 - 1 {
-                        linebuf.len() as u16 - 1
+                    if cur_pos.1 == self.linebuf.borrow().len() as u16 - 1 {
+                        self.linebuf.borrow().len() as u16 - 1
                     } else {
                         cur_pos.1 + 1
                     },
                 );
 
-                let hlpat = pane.ref_highlight_regex().to_owned();
-                if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, false) {
-                    pane.goto_absolute_line(pos.1)?;
+                if self.searcher.borrow().as_str().is_empty() {
+                    pane.show_highlight(false);
+                } else {
+                    if let Some(pos) = self.search(next_pos) {
+                    // if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
+                        pane.goto_absolute_line(pos.1)?;
+                    }
+                    pane.show_highlight(true);
                 }
-
-                // let hlpat = pane.ref_highlight_word().unwrap_or("").to_owned();
-                // if let Some(pos) = self.search_by_str(linebuf, next_pos, &hlpat, false) {
-                //     pane.goto_absolute_line(pos.1)?;
-                // }
-
                 pane.set_message(None);
                 pane.refresh()?;
             }
@@ -282,16 +286,15 @@ impl App {
                 let cur_pos = pane.position();
                 let next_pos = (cur_pos.0, if cur_pos.1 == 0 { 0 } else { cur_pos.1 - 1 });
 
-                let hlpat = pane.ref_highlight_regex().to_owned();
-                if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
-                    pane.goto_absolute_line(pos.1)?;
+                if self.searcher.borrow().as_str().is_empty() {
+                    pane.show_highlight(false);
+                } else {
+                    if let Some(pos) = self.search_rev(next_pos) {
+                    // if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
+                        pane.goto_absolute_line(pos.1)?;
+                    }
+                    pane.show_highlight(true);
                 }
-
-                // let hlpat = pane.ref_highlight_word().unwrap_or("").to_owned();
-                // if let Some(pos) = self.search_by_str(linebuf, next_pos, &hlpat, true) {
-                //     pane.goto_absolute_line(pos.1)?;
-                // }
-
                 pane.set_message(None);
                 pane.refresh()?;
             }
@@ -301,7 +304,8 @@ impl App {
             }
             PeepEvent::Cancel => {
                 pane.set_message(None);
-                pane.set_highlight_word(None);
+                // pane.set_highlight_word(None);
+                pane.show_highlight(false);
                 pane.refresh()?;
             }
             PeepEvent::Quit => {
@@ -312,54 +316,29 @@ impl App {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    /// return (x, y)
-    fn search_by_str(
+    fn search(
         &self,
-        buffer: &[String],
         pos: (u16, u16),
-        pat: &str,
-        reverse: bool,
     ) -> Option<(u16, u16)> {
-        if pat.is_empty() {
-            return None;
-        }
-        if !reverse {
-            for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
-                if let Some(c) = line.find(pat) {
-                    return Some((c as u16, pos.1 + i as u16));
-                }
-            }
-        } else {
-            for (i, line) in buffer[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
-                if let Some(c) = line.find(pat) {
-                    // hit!
-                    return Some((c as u16, pos.1 - i as u16));
-                }
+        let searcher = self.searcher.borrow();
+        let ref_linebuf = self.linebuf.borrow();
+        for (i, line) in ref_linebuf[(pos.1 as usize)..].iter().enumerate() {
+            if let Some(m) = searcher.find(line) {
+                return Some((m.start() as u16, pos.1 + i as u16));
             }
         }
         None
     }
 
-    /// return (x, y)
-    fn search_by_regex(
+    fn search_rev(
         &self,
-        buffer: &[String],
         pos: (u16, u16),
-        re: &Regex,
-        reverse: bool,
     ) -> Option<(u16, u16)> {
-        if !reverse {
-            for (i, line) in buffer[(pos.1 as usize)..].iter().enumerate() {
-                if let Some(m) = re.find(&line) {
-                    return Some((m.start() as u16, pos.1 + i as u16));
-                }
-            }
-        } else {
-            for (i, line) in buffer[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
-                if let Some(m) = re.find(&line) {
-                    return Some((m.start() as u16, pos.1 - i as u16));
-                }
+        let searcher = self.searcher.borrow();
+        let ref_linebuf = self.linebuf.borrow();
+        for (i, line) in ref_linebuf[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
+            if let Some(m) = searcher.find(line) {
+                return Some((m.start() as u16, pos.1 - i as u16));
             }
         }
         None

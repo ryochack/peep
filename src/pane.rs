@@ -1,10 +1,12 @@
 //! Pane module
 
 use csi::cursor_ext;
-use regex::{self, Regex};
+use search::{NullSearcher, Search};
 use std::cmp;
 use std::io::{self, Write};
 use std::ops;
+use std::rc::Rc;
+use std::cell::RefCell;
 use termion;
 
 const DEFAULT_PANE_HEIGHT: u16 = 5;
@@ -24,7 +26,7 @@ impl fmt::Display for ExtendMark {
 }
 
 pub struct Pane<'a> {
-    linebuf: &'a [String],
+    linebuf: Rc<RefCell<Vec<String>>>,
     writer: &'a mut Write,
     height: u16,
     numof_flushed_lines: u16,
@@ -32,8 +34,7 @@ pub struct Pane<'a> {
     cur_pos: (u16, u16),
     show_linenumber: bool,
     show_highlight: bool,
-    _highlight_word: String,
-    highlight_re: Regex,
+    hlsearcher: Rc<RefCell<Search>>,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
 }
@@ -58,15 +59,16 @@ impl ScrollStep {
 impl<'a> Pane<'a> {
     pub fn new(w: &'a mut Write) -> Self {
         let mut pane = Pane {
-            linebuf: &[],
+            linebuf: Rc::new(RefCell::new(Vec::new())),
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
             numof_flushed_lines: DEFAULT_PANE_HEIGHT,
             cur_pos: (0, 0),
             show_linenumber: false,
             show_highlight: false,
-            _highlight_word: "".to_owned(),
-            highlight_re: Regex::new("").unwrap(),
+            hlsearcher: Rc::new(RefCell::new(NullSearcher::new())),
+            // _highlight_word: "".to_owned(),
+            // highlight_re: Regex::new("").unwrap(),
             message: "".to_owned(),
             termsize_getter: Box::new(|| termion::terminal_size()),
         };
@@ -81,7 +83,7 @@ impl<'a> Pane<'a> {
         self.termsize_getter = getter;
     }
 
-    pub fn load(&mut self, buf: &'a [String]) {
+    pub fn load(&mut self, buf: Rc<RefCell<Vec<String>>>) {
         self.linebuf = buf;
         self.cur_pos = (0, 0);
     }
@@ -102,31 +104,11 @@ impl<'a> Pane<'a> {
         self.writer.write(s.as_bytes()).unwrap();
     }
 
-    #[allow(dead_code)]
     /// Highlight line with the highlight word
-    fn highlight_by_str(raw: &str, hlword: &str) -> String {
+    fn highlight_words(&self, raw: &str) -> String {
         let mut line = String::new();
         let mut i = 0;
-        for m in raw.match_indices(hlword) {
-            let hl = (m.0, m.0 + m.1.len());
-            line.push_str(raw.get(i..hl.0).unwrap_or("#"));
-            line.push_str(&format!("{}", termion::style::Invert));
-            line.push_str(raw.get(hl.0..hl.1).unwrap_or("#"));
-            line.push_str(&format!("{}", termion::style::Reset));
-            i = hl.1;
-        }
-        if i < raw.len() {
-            line.push_str(raw.get(i..).unwrap_or("#"));
-        }
-        line
-    }
-
-    /// Highlight line with the highlight word
-    fn highlight_by_regex(raw: &str, re: &Regex) -> String {
-        let mut line = String::new();
-        let mut i = 0;
-
-        for m in re.find_iter(raw) {
+        for m in self.hlsearcher.borrow().find_iter(raw) {
             let hl = (m.start(), m.end());
             line.push_str(raw.get(i..hl.0).unwrap_or("#"));
             line.push_str(&format!("{}", termion::style::Invert));
@@ -229,8 +211,7 @@ impl<'a> Pane<'a> {
     // Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let hlline = if self.show_highlight {
-            // Pane::highlight_by_str(raw, &self._highlight_word)
-            Pane::highlight_by_regex(raw, &self.highlight_re)
+            self.highlight_words(raw)
         } else {
             raw.to_owned()
         };
@@ -274,11 +255,11 @@ impl<'a> Pane<'a> {
         format!("{}{}{}{}", ln, sol, trimed, eol)
     }
 
-    pub fn refresh(&mut self) -> io::Result<()> {
+    pub fn refresh<'r>(&mut self) -> io::Result<()> {
         // content lines
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
-        for (i, line) in self.linebuf[buf_range.start..buf_range.end]
+        for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
             .iter()
             .enumerate()
         {
@@ -289,7 +270,7 @@ impl<'a> Pane<'a> {
         }
 
         // message line
-        if self.message.is_empty() && buf_range.end == self.linebuf.len() {
+        if self.message.is_empty() && buf_range.end == self.linebuf.borrow().len() {
             block.push_str(&format!(
                 "{}(END){}",
                 termion::style::Invert,
@@ -317,44 +298,12 @@ impl<'a> Pane<'a> {
         self.show_linenumber = b;
     }
 
-    #[allow(dead_code)]
-    pub fn set_highlight_word(&mut self, hlword: Option<&str>) {
-        if let Some(w) = hlword {
-            if w.is_empty() {
-                self.show_highlight = false;
-            } else {
-                self.show_highlight = true;
-                self._highlight_word = w.to_owned();
-            }
-        } else {
-            self.show_highlight = false;
-        }
+    pub fn show_highlight(&mut self, b: bool) {
+        self.show_highlight = b;
     }
 
-    pub fn set_highlight_regex(&mut self, re: Option<&str>) -> io::Result<()> {
-        if let Some(r) = re {
-            let a = Regex::new(r);
-            if a.is_err() {
-                self.show_highlight = false;
-                // TODO: unify pane error list
-                return match a.unwrap_err() {
-                    regex::Error::Syntax(_s) => {
-                        Err(io::Error::new(io::ErrorKind::InvalidInput, "Syntax error"))
-                    }
-                    regex::Error::CompiledTooBig(_n) => Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "Compiled too big",
-                    )),
-                    _ => Err(io::Error::new(io::ErrorKind::Other, "Unknown regex error")),
-                };
-            }
-            self.show_highlight = true;
-            self.highlight_re = a.unwrap();
-        } else {
-            self.show_highlight = false;
-            self.highlight_re = Regex::new("").unwrap();
-        }
-        Ok(())
+    pub fn set_highlight_searcher(&mut self, searcher: Rc<RefCell<Search>>) {
+        self.hlsearcher = searcher;
     }
 
     pub fn set_message(&mut self, msg: Option<&str>) {
@@ -388,28 +337,15 @@ impl<'a> Pane<'a> {
         self.cur_pos
     }
 
-    #[allow(dead_code)]
-    pub fn ref_highlight_word(&self) -> Option<&str> {
-        if self._highlight_word.is_empty() {
-            None
-        } else {
-            Some(&self._highlight_word)
-        }
-    }
-
-    pub fn ref_highlight_regex(&self) -> &Regex {
-        &self.highlight_re
-    }
-
     /// return the end of y that is considered buffer lines and window size
     fn limit_bottom_y(&self) -> io::Result<u16> {
-        Ok(self.linebuf.len() as u16 - self.size()?.1)
+        Ok(self.linebuf.borrow().len() as u16 - self.size()?.1)
     }
 
     /// return range of visible lines
     fn range_of_visible_lines(&self) -> io::Result<ops::Range<usize>> {
         let pane_height = self.size()?.1 as usize;
-        let buf_height = self.linebuf.len();
+        let buf_height = self.linebuf.borrow().len();
         let y = self.cur_pos.1 as usize;
 
         Ok(if buf_height < pane_height {
@@ -479,7 +415,7 @@ impl<'a> Pane<'a> {
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.size()?.0);
-        let max_visible_line_len = self.linebuf[self.range_of_visible_lines()?]
+        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
@@ -510,7 +446,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn goto_tail_of_line(&mut self) -> io::Result<(u16, u16)> {
-        let max_visible_line_len = self.linebuf[self.range_of_visible_lines().unwrap()]
+        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines().unwrap()]
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
@@ -521,7 +457,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn goto_absolute_line(&mut self, line: u16) -> io::Result<u16> {
-        let buf_height = self.linebuf.len() as u16;
+        let buf_height = self.linebuf.borrow().len() as u16;
         self.cur_pos.1 = if line >= buf_height {
             buf_height - 1
         } else {
@@ -531,7 +467,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn goto_absolute_horizontal_offset(&mut self, offset: u16) -> io::Result<u16> {
-        let max_visible_line_len = self.linebuf[self.range_of_visible_lines()?]
+        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
             .fold(0, |acc, x| cmp::max(acc, x)) as u16;
@@ -571,7 +507,7 @@ impl<'a> Pane<'a> {
 mod tests {
     use super::*;
 
-    const static_texts: &'static [&'static str] = &[
+    const STATIC_TEXTS: &'static [&'static str] = &[
         "11111111",
         "22222222",
         "33333333",
@@ -590,13 +526,9 @@ mod tests {
         "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
     ];
 
-    fn setup() {}
-
-    fn teardown() {}
-
     fn texts() -> Vec<String> {
         let mut v: Vec<String> = vec![];
-        for t in static_texts.iter() {
+        for t in STATIC_TEXTS.iter() {
             v.push(t.to_string());
         }
         v
@@ -605,18 +537,16 @@ mod tests {
     #[test]
     fn test_pane_scroll() {
         use std::fs::OpenOptions;
-        use std::io;
         use std::io::BufWriter;
-        use std::{thread, time};
 
         // let w = io::stdout();
         // let mut w = w.lock();
         let f = OpenOptions::new().write(true).open("/dev/null").unwrap();
         let mut w = BufWriter::new(f);
 
-        let texts = texts();
+        let texts = Rc::new(RefCell::new(texts()));
         let mut pane = Pane::new(&mut w);
-        pane.load(&texts);
+        pane.load(texts.clone());
 
         let size_getter = || Ok((10, 4));
         let size = size_getter().unwrap();
@@ -642,7 +572,7 @@ mod tests {
         pos.1 += size.1;
         assert_eq!(pane.position(), pos);
         // bottom limit
-        let bottom = texts.len() as u16 - size.1;
+        let bottom = texts.borrow().len() as u16 - size.1;
         let remain = bottom - pos.1;
         assert_eq!(pane.scroll_down(ScrollStep::Page(10)).unwrap(), remain);
         pos.1 = bottom;
@@ -677,20 +607,20 @@ mod tests {
 
         let w = io::stdout();
         let mut w = w.lock();
-        let texts = texts();
+        let texts = Rc::new(RefCell::new(texts()));
         let mut pane = Pane::new(&mut w);
         pane.replace_termsize_getter(Box::new(|| Ok((10, 5))));
-        pane.load(&texts);
-        pane.refresh();
+        pane.load(texts.clone());
+        let _ = pane.refresh();
         thread::sleep(time::Duration::from_millis(200));
-        pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(ScrollStep::Char(1));
         thread::sleep(time::Duration::from_millis(200));
-        pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(ScrollStep::Char(1));
         thread::sleep(time::Duration::from_millis(200));
-        pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(ScrollStep::Char(1));
 
-        pane.set_height(10);
-        pane.refresh();
+        let _ = pane.set_height(10);
+        let _ = pane.refresh();
 
         pane.quit();
     }
