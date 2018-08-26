@@ -21,13 +21,6 @@ static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (interrupt 
 pub struct KeyEventHandler<'a> {
     istream: &'a mut Read,
     parser: &'a mut keybind::KeyParser,
-    oldstat: Box<termios::Termios>,
-}
-
-impl<'a> Drop for KeyEventHandler<'a> {
-    fn drop(&mut self) {
-        tty::echo_on(&*self.oldstat);
-    }
 }
 
 impl<'a> KeyEventHandler<'a> {
@@ -35,7 +28,6 @@ impl<'a> KeyEventHandler<'a> {
         KeyEventHandler {
             istream: istream,
             parser: parser,
-            oldstat: Box::new(tty::echo_off()),
         }
     }
 
@@ -58,6 +50,14 @@ pub struct App {
     seek_pos: u64,
     searcher: Rc<RefCell<search::Search>>,
     linebuf: Rc<RefCell<Vec<String>>>,
+    // termios parameter moved from KeyEventHandler to App to detect Drop App.
+    oldstat: Box<termios::Termios>,
+}
+
+impl Drop for App {
+    fn drop(&mut self) {
+        tty::echo_on(&*self.oldstat);
+    }
 }
 
 impl App {
@@ -70,6 +70,7 @@ impl App {
             seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
             linebuf: Rc::new(RefCell::new(Vec::new())),
+            oldstat: Box::new(tty::echo_off()),
         }
     }
 
@@ -128,6 +129,10 @@ impl App {
         pane.set_highlight_searcher(self.searcher.clone());
         pane.show_line_number(self.show_linenumber);
         pane.set_height(self.nlines)?;
+        if self.follow_mode {
+            pane.goto_bottom_of_lines()?;
+            pane.set_message(Some(FOLLOWING_MESSAGE));
+        }
         pane.refresh()?;
 
         let key_sender = event_sender.clone();
