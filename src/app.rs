@@ -160,33 +160,10 @@ impl App {
                         PeepEvent::Quit => {
                             break;
                         }
-                        PeepEvent::FollowMode => {
-                            // Enter follow mode
-                            self.follow_mode = true;
-                            // Relaod file
-                            self.read_buffer()?;
-                            pane.goto_bottom_of_lines()?;
-                            pane.set_message(Some(FOLLOWING_MESSAGE));
-                            pane.refresh()?;
-                        }
                         _ => {}
                     }
                 } else {
-                    match event {
-                        PeepEvent::FileUpdated => {
-                            self.read_buffer()?;
-                            pane.goto_bottom_of_lines()?;
-                            pane.set_message(Some(FOLLOWING_MESSAGE));
-                            pane.refresh()?;
-                        }
-                        PeepEvent::SigInt => {
-                            // Leave follow mode
-                            self.follow_mode = false;
-                            pane.set_message(None);
-                            pane.refresh()?;
-                        }
-                        _ => {}
-                    }
+                    self.handle_follow(&event, &mut pane)?;
                 }
             }
         }
@@ -336,6 +313,15 @@ impl App {
                 pane.show_highlight(false);
                 pane.refresh()?;
             }
+            PeepEvent::FollowMode => {
+                // Enter follow mode
+                self.follow_mode = true;
+                // Relaod file
+                self.read_buffer()?;
+                pane.goto_bottom_of_lines()?;
+                pane.set_message(Some(FOLLOWING_MESSAGE));
+                pane.refresh()?;
+            }
             PeepEvent::Quit => {
                 pane.quit();
             }
@@ -345,6 +331,42 @@ impl App {
                 pane.set_message(Some("\x07"));
                 pane.refresh()?;
                 pane.set_message(None);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_follow(&mut self, event: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
+        match event {
+            &PeepEvent::ToggleLineNumberPrinting => {
+                self.show_linenumber = !self.show_linenumber;
+                pane.show_line_number(self.show_linenumber);
+                pane.refresh()?;
+            }
+            &PeepEvent::IncrementLines(n) => {
+                pane.increment_height(n)?;
+                pane.refresh()?;
+            }
+            &PeepEvent::DecrementLines(n) => {
+                pane.decrement_height(n)?;
+                pane.refresh()?;
+            }
+            &PeepEvent::SetNumOfLines(n) => {
+                pane.set_height(n)?;
+                pane.refresh()?;
+            }
+            PeepEvent::FileUpdated => {
+                self.read_buffer()?;
+                pane.goto_bottom_of_lines()?;
+                pane.set_message(Some(FOLLOWING_MESSAGE));
+                pane.refresh()?;
+            }
+            PeepEvent::SigInt => {
+                // Leave follow mode
+                self.follow_mode = false;
+                pane.set_message(None);
+                pane.refresh()?;
             }
             _ => {}
         }
