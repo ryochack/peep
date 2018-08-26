@@ -6,6 +6,7 @@ extern crate termios;
 pub mod app;
 pub mod csi;
 pub mod event;
+pub mod filewatch;
 pub mod keybind;
 pub mod pane;
 pub mod search;

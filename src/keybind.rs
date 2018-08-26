@@ -67,6 +67,7 @@ pub mod default {
                 ("n", PeepEvent::SearchNext),
                 ("N", PeepEvent::SearchPrev),
                 ("q", PeepEvent::Quit),
+                ("F", PeepEvent::FollowMode),
             ]
                 .iter()
                 .cloned()
@@ -267,6 +268,7 @@ mod tests {
         assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
         assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
         assert_eq!(kb.parse('#'), Some(PeepEvent::ToggleLineNumberPrinting));
+        assert_eq!(kb.parse('F'), Some(PeepEvent::FollowMode));
         assert_eq!(kb.parse('\x1b'), Some(PeepEvent::Cancel));
     }
 

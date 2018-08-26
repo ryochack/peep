@@ -10,4 +10,5 @@ termion = "1.5"
 nix = "0.11"
 ctrlc = "3.1"
 regex = "1.0"
+inotify = "0.6"
 

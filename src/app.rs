@@ -3,7 +3,7 @@ extern crate termion;
 extern crate termios;
 
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -11,10 +11,12 @@ use std::thread::spawn;
 
 use keybind;
 use event::PeepEvent;
+use filewatch;
 use pane::{Pane, ScrollStep};
 use search;
 use tty;
 
+static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (interrupt to abort)\x1b[0m";
 
 pub struct KeyEventHandler<'a> {
     istream: &'a mut Read,
@@ -51,7 +53,9 @@ impl<'a> KeyEventHandler<'a> {
 pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
+    pub follow_mode: bool,
     file_path: String,
+    seek_pos: u64,
     searcher: Rc<RefCell<search::Search>>,
     linebuf: Rc<RefCell<Vec<String>>>,
 }
@@ -61,14 +65,15 @@ impl App {
         App {
             show_linenumber: false,
             nlines: 5,
+            follow_mode: false,
             file_path: String::new(),
+            seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
             linebuf: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
     fn read_buffer(&mut self) -> io::Result<()> {
-        // let mut linebuf: Vec<String> = Vec::new();
         if self.file_path == "-" {
             // read from stdin if pipe
             let inp = io::stdin();
@@ -82,9 +87,12 @@ impl App {
             }
         } else {
             // read from file
-            if let Ok(file) = File::open(&self.file_path) {
+            if let Ok(mut file) = File::open(&self.file_path) {
+                self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
                 let mut bufreader = BufReader::new(file);
                 for v in bufreader.lines().map(|v| v.unwrap()) {
+                    // +1 is LR length
+                    self.seek_pos += v.as_bytes().len() as u64 + 1;
                     self.linebuf.borrow_mut().push(v);
                 }
             } else {
@@ -104,9 +112,9 @@ impl App {
         let writer = io::stdout();
         let writer = writer.lock();
 
-        let (sender, reciever) = mpsc::channel();
-        let sig_sender = sender.clone();
+        let (event_sender, event_receiver) = mpsc::channel();
 
+        let sig_sender = event_sender.clone();
         // Ctrl-C handler
         ctrlc::set_handler(move || {
             // receive SIGINT
@@ -122,6 +130,7 @@ impl App {
         pane.set_height(self.nlines)?;
         pane.refresh()?;
 
+        let key_sender = event_sender.clone();
         // Key reading thread
         let _keythread = spawn(move || {
             let reader = io::stdin();
@@ -131,30 +140,52 @@ impl App {
 
             loop {
                 match keh.read() {
-                    Some(keyop) => {
-                        sender.send(keyop.clone()).unwrap();
-                        if keyop == PeepEvent::Quit {
-                            break;
-                        }
+                    Some(event) => {
+                        key_sender.send(event.clone()).unwrap();
                     }
                     None => {}
                 }
             }
         });
 
+        // spawn inotifier thread for following mode
+        filewatch::inotifier(&self.file_path, event_sender);
+
         // app loop
         loop {
-            if let Ok(keyop) = reciever.recv() {
-                if keyop == PeepEvent::SigInt {
-                    // receive SIGINT
-                    // ring a bel
-                    pane.set_message(Some("\x07"));
-                    pane.refresh()?;
-                    pane.set_message(None);
+            if let Ok(event) = event_receiver.recv() {
+                if !self.follow_mode {
+                    self.handle_normal(&event, &mut pane)?;
+                    match event {
+                        PeepEvent::Quit => {
+                            break;
+                        }
+                        PeepEvent::FollowMode => {
+                            // Enter follow mode
+                            self.follow_mode = true;
+                            // Relaod file
+                            self.read_buffer()?;
+                            pane.goto_bottom_of_lines()?;
+                            pane.set_message(Some(FOLLOWING_MESSAGE));
+                            pane.refresh()?;
+                        }
+                        _ => {}
+                    }
                 } else {
-                    self.handle(&keyop, &mut pane)?;
-                    if keyop == PeepEvent::Quit {
-                        break;
+                    match event {
+                        PeepEvent::FileUpdated => {
+                            self.read_buffer()?;
+                            pane.goto_bottom_of_lines()?;
+                            pane.set_message(Some(FOLLOWING_MESSAGE));
+                            pane.refresh()?;
+                        }
+                        PeepEvent::SigInt => {
+                            // Leave follow mode
+                            self.follow_mode = false;
+                            pane.set_message(None);
+                            pane.refresh()?;
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -162,8 +193,8 @@ impl App {
         Ok(())
     }
 
-    fn handle(&mut self, keyop: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
-        match keyop {
+    fn handle_normal(&mut self, event: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
+        match event {
             &PeepEvent::MoveDown(n) => {
                 pane.scroll_down(ScrollStep::Char(n))?;
                 pane.refresh()?;
@@ -308,6 +339,13 @@ impl App {
             PeepEvent::Quit => {
                 pane.quit();
             }
+            PeepEvent::SigInt => {
+                // receive SIGINT
+                // ring a bel
+                pane.set_message(Some("\x07"));
+                pane.refresh()?;
+                pane.set_message(None);
+            }
             _ => {}
         }
         Ok(())
@@ -341,3 +379,4 @@ impl App {
         None
     }
 }
+

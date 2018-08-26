@@ -26,6 +26,7 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
     let mut opts = Options::new();
     opts.optopt("n", "lines", "set height of pane", "LINES")
         .optflag("N", "print-line-number", "print line numbers")
+        .optflag("f", "follow", "output appended data as the file grows")
         .optflag("h", "help", "show this usage")
         .optflag("v", "version", "show version");
 
@@ -46,6 +47,7 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
 
     let mut app = App::new();
     app.show_linenumber = matches.opt_present("N");
+    app.follow_mode = matches.opt_present("f");
     if let Ok(Some(nlines)) = matches.opt_get::<u16>("n") {
         app.nlines = nlines;
     }
