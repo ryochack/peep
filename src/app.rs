@@ -274,7 +274,6 @@ impl App {
                     pane.show_highlight(false);
                 } else {
                     if let Some(pos) = self.search(next_pos) {
-                    // if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
                         pane.goto_absolute_line(pos.1)?;
                     }
                     pane.show_highlight(true);
@@ -290,7 +289,6 @@ impl App {
                     pane.show_highlight(false);
                 } else {
                     if let Some(pos) = self.search_rev(next_pos) {
-                    // if let Some(pos) = self.search_by_regex(linebuf, next_pos, &hlpat, true) {
                         pane.goto_absolute_line(pos.1)?;
                     }
                     pane.show_highlight(true);
@@ -304,7 +302,6 @@ impl App {
             }
             PeepEvent::Cancel => {
                 pane.set_message(None);
-                // pane.set_highlight_word(None);
                 pane.show_highlight(false);
                 pane.refresh()?;
             }
