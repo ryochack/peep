@@ -56,7 +56,7 @@ pub struct App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        tty::echo_on(&self.oldstat);
+        tty::restore(&self.oldstat);
     }
 }
 
@@ -70,7 +70,7 @@ impl App {
             seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
             linebuf: Rc::new(RefCell::new(Vec::new())),
-            oldstat: tty::echo_off(),
+            oldstat: tty::clear_lflag(termios::ICANON | termios::ECHO),
         }
     }
 
@@ -138,11 +138,11 @@ impl App {
         let key_sender = event_sender.clone();
         // Key reading thread
         let _keythread = spawn(move || {
-            let mut tty = File::open("/dev/tty").unwrap();
+            let mut keyin = File::open("/dev/tty").unwrap();
             // let reader = io::stdin();
             // let mut reader = reader.lock();
             let mut kb = keybind::default::KeyBind::new();
-            let mut keh = KeyEventHandler::new(&mut tty, &mut kb);
+            let mut keh = KeyEventHandler::new(&mut keyin, &mut kb);
 
             loop {
                 match keh.read() {
