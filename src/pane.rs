@@ -100,7 +100,9 @@ impl<'a> Pane<'a> {
             s.push_str("\n");
         }
         s.push_str(&format!("{}", termion::clear::CurrentLine));
-        s.push_str(&format!("{}", cursor_ext::PreviousLine(self.numof_flushed_lines as u16)));
+        if self.numof_flushed_lines > 0 {
+            s.push_str(&format!("{}", cursor_ext::PreviousLine(self.numof_flushed_lines as u16)));
+        }
         self.writer.borrow_mut().write(s.as_bytes()).unwrap();
     }
 
@@ -320,11 +322,13 @@ impl<'a> Pane<'a> {
     }
 
     fn return_home(&self) {
-        write!(
-            self.writer.borrow_mut(),
-            "{}",
-            cursor_ext::PreviousLine(self.numof_flushed_lines)
-        );
+        if self.numof_flushed_lines > 0 {
+            write!(
+                self.writer.borrow_mut(),
+                "{}",
+                cursor_ext::PreviousLine(self.numof_flushed_lines)
+            );
+        }
     }
 
     /// return (width, height)
