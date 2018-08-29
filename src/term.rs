@@ -1,5 +1,7 @@
 use termios;
 use std::os::unix::io::RawFd;
+use libc;
+use std::io::Stdin;
 
 // re-export
 pub use termios::{
@@ -95,3 +97,23 @@ impl TermAttrRestorer {
     }
 }
 
+pub trait Block {
+    fn nonblocking(&self);
+    fn blocking(&self);
+}
+
+impl Block for Stdin {
+    fn nonblocking(&self) {
+        unsafe {
+            let mut nonblocking = 1 as libc::c_ulong;
+            libc::ioctl(0, libc::FIONBIO, &mut nonblocking);
+        }
+    }
+
+    fn blocking(&self) {
+        unsafe {
+            let mut nonblocking = 0 as libc::c_ulong;
+            libc::ioctl(0, libc::FIONBIO, &mut nonblocking);
+        }
+    }
+}

@@ -15,7 +15,7 @@ use event::PeepEvent;
 use filewatch;
 use pane::{Pane, ScrollStep};
 use search;
-use term;
+use term::{self, Block};
 
 static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (interrupt to abort)\x1b[0m";
 
@@ -94,11 +94,15 @@ impl App {
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
             }
 
+            stdin.nonblocking();
+
             let stdinlock = stdin.lock();
-            for v in stdinlock.lines().map(|v| v.unwrap()) {
-                println!("< push {}", &v);
+            let mut lines_iter = stdinlock.lines();
+            while let Some(Ok(v)) = lines_iter.next() {
                 self.linebuf.borrow_mut().push(v);
             }
+
+            stdin.blocking();
         } else {
             // read from file
             if let Ok(mut file) = File::open(&self.file_path) {
