@@ -8,13 +8,14 @@ use std::sync::mpsc;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::thread::spawn;
+use std::os::unix::io::AsRawFd;
 
 use keybind;
 use event::PeepEvent;
 use filewatch;
 use pane::{Pane, ScrollStep};
 use search;
-use tty;
+use term;
 
 static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (interrupt to abort)\x1b[0m";
 
@@ -51,17 +52,27 @@ pub struct App {
     searcher: Rc<RefCell<search::Search>>,
     linebuf: Rc<RefCell<Vec<String>>>,
     // termios parameter moved from KeyEventHandler to App to detect Drop App.
-    oldstat: Option<termios::Termios>,
+    term_restorer: Option<term::TermAttrRestorer>,
 }
 
 impl Drop for App {
     fn drop(&mut self) {
-        tty::restore(&self.oldstat);
+        if let Some(ref tr) = self.term_restorer {
+            // Prepare key input setting
+            let ftty = File::open("/dev/tty").unwrap();
+            tr.restore(ftty.as_raw_fd());
+        }
     }
 }
 
 impl App {
     pub fn new() -> Self {
+        // Prepare key input setting
+        let ftty = File::open("/dev/tty").unwrap();
+        let term_restorer = term::TermAttrSetter::new(ftty.as_raw_fd())
+            .lflag(0, term::ICANON | term::ECHO)
+            .set();
+
         App {
             show_linenumber: false,
             nlines: 5,
@@ -70,20 +81,22 @@ impl App {
             seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
             linebuf: Rc::new(RefCell::new(Vec::new())),
-            oldstat: tty::clear_lflag(termios::ICANON | termios::ECHO),
+            term_restorer: Some(term_restorer),
         }
     }
 
     fn read_buffer(&mut self) -> io::Result<()> {
         if self.file_path == "-" {
             // read from stdin if pipe
-            let inp = io::stdin();
-            if termion::is_tty(&inp) {
+            let stdin = io::stdin();
+            if termion::is_tty(&stdin) {
                 // stdin is tty. not pipe.
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
             }
-            let inp = inp.lock();
-            for v in inp.lines().map(|v| v.unwrap()) {
+
+            let stdinlock = stdin.lock();
+            for v in stdinlock.lines().map(|v| v.unwrap()) {
+                println!("< push {}", &v);
                 self.linebuf.borrow_mut().push(v);
             }
         } else {
@@ -106,9 +119,6 @@ impl App {
     pub fn run(&mut self, path: &str) -> io::Result<()> {
         self.file_path = path.to_owned();
         self.read_buffer()?;
-
-        // to input key from stdin when pipe is enable.
-        // tty::switch_stdin_to_tty();
 
         let writer = io::stdout();
         let writer = writer.lock();

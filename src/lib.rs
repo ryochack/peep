@@ -10,4 +10,4 @@ pub mod filewatch;
 pub mod keybind;
 pub mod pane;
 pub mod search;
-pub mod tty;
+pub mod term;
