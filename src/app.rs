@@ -2,17 +2,17 @@ extern crate ctrlc;
 extern crate termion;
 extern crate termios;
 
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
-use std::sync::mpsc;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::thread::spawn;
 use std::os::unix::io::AsRawFd;
+use std::rc::Rc;
+use std::sync::mpsc;
+use std::thread::spawn;
 
-use keybind;
 use event::PeepEvent;
 use filewatch;
+use keybind;
 use pane::{Pane, ScrollStep};
 use search;
 use term::{self, Block};
@@ -26,10 +26,7 @@ pub struct KeyEventHandler<'a> {
 
 impl<'a> KeyEventHandler<'a> {
     pub fn new(istream: &'a mut Read, parser: &'a mut keybind::KeyParser) -> Self {
-        KeyEventHandler {
-            istream,
-            parser,
-        }
+        KeyEventHandler { istream, parser }
     }
 
     pub fn read(&mut self) -> Option<PeepEvent> {
@@ -415,10 +412,7 @@ impl App {
         Ok(())
     }
 
-    fn search(
-        &self,
-        pos: (u16, u16),
-    ) -> Option<(u16, u16)> {
+    fn search(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
         let searcher = self.searcher.borrow();
         let ref_linebuf = self.linebuf.borrow();
         for (i, line) in ref_linebuf[(pos.1 as usize)..].iter().enumerate() {
@@ -429,13 +423,14 @@ impl App {
         None
     }
 
-    fn search_rev(
-        &self,
-        pos: (u16, u16),
-    ) -> Option<(u16, u16)> {
+    fn search_rev(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
         let searcher = self.searcher.borrow();
         let ref_linebuf = self.linebuf.borrow();
-        for (i, line) in ref_linebuf[0..(pos.1 as usize) + 1].iter().rev().enumerate() {
+        for (i, line) in ref_linebuf[0..(pos.1 as usize) + 1]
+            .iter()
+            .rev()
+            .enumerate()
+        {
             if let Some(m) = searcher.find(line) {
                 return Some((m.start() as u16, pos.1 - i as u16));
             }
@@ -443,4 +438,3 @@ impl App {
         None
     }
 }
-

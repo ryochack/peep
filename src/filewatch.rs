@@ -1,22 +1,19 @@
 extern crate inotify;
 
+use event::PeepEvent;
 use std::sync::mpsc;
 use std::thread::spawn;
-use event::PeepEvent;
 
-pub fn inotifier(file_path: &str,
-             event_sender: mpsc::Sender<PeepEvent>) {
+pub fn inotifier(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
     let mut inotify = inotify::Inotify::init().expect("Failed to initialize inotify");
 
     if file_path == "-" {
         use std::{thread, time};
         // from pipe
         // FIXME: how to watch stdin?
-        let _ = spawn(move || {
-            loop {
-                thread::sleep(time::Duration::from_millis(500));
-                event_sender.send(PeepEvent::FileUpdated).unwrap();
-            }
+        let _ = spawn(move || loop {
+            thread::sleep(time::Duration::from_millis(500));
+            event_sender.send(PeepEvent::FileUpdated).unwrap();
         });
     } else {
         // from file
@@ -39,4 +36,3 @@ pub fn inotifier(file_path: &str,
         });
     }
 }
-

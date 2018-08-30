@@ -2,11 +2,11 @@
 
 use csi::cursor_ext;
 use search::{NullSearcher, Search};
+use std::cell::RefCell;
 use std::cmp;
 use std::io::{self, Write};
 use std::ops;
 use std::rc::Rc;
-use std::cell::RefCell;
 use termion;
 
 const DEFAULT_PANE_HEIGHT: u16 = 5;
@@ -101,7 +101,10 @@ impl<'a> Pane<'a> {
         }
         s.push_str(&format!("{}", termion::clear::CurrentLine));
         if self.numof_flushed_lines > 0 {
-            s.push_str(&format!("{}", cursor_ext::PreviousLine(self.numof_flushed_lines as u16)));
+            s.push_str(&format!(
+                "{}",
+                cursor_ext::PreviousLine(self.numof_flushed_lines as u16)
+            ));
         }
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
     }
@@ -281,7 +284,10 @@ impl<'a> Pane<'a> {
 
         self.return_home();
         self.sweep();
-        self.writer.borrow_mut().write_all(block.as_bytes()).unwrap();
+        self.writer
+            .borrow_mut()
+            .write_all(block.as_bytes())
+            .unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
         Ok(())
@@ -344,10 +350,10 @@ impl<'a> Pane<'a> {
         let pane_height = self.size()?.1;
 
         Ok(if linebuf_height > pane_height {
-                linebuf_height - pane_height
-            } else {
-                linebuf_height
-            })
+            linebuf_height - pane_height
+        } else {
+            linebuf_height
+        })
     }
 
     /// return range of visible lines

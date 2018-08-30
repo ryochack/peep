@@ -1,8 +1,8 @@
+extern crate libc;
+extern crate nix;
 extern crate regex;
 extern crate termion;
 extern crate termios;
-extern crate libc;
-extern crate nix;
 
 pub mod app;
 pub mod csi;

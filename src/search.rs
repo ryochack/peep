@@ -4,7 +4,7 @@ use std::io;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Match {
     start: usize,
-    end: usize
+    end: usize,
 }
 
 impl Match {
@@ -17,10 +17,7 @@ impl Match {
         self.end
     }
     fn new(start: usize, end: usize) -> Match {
-        Match {
-            start,
-            end,
-        }
+        Match { start, end }
     }
 }
 
@@ -87,9 +84,7 @@ pub struct PlaneSearcher {
 
 impl PlaneSearcher {
     pub fn new() -> Self {
-        Self {
-            pat: String::new(),
-        }
+        Self { pat: String::new() }
     }
 }
 
@@ -108,10 +103,10 @@ impl Search for PlaneSearcher {
 
     fn find_iter(&self, text: &str) -> MatchIter {
         MatchIter {
-            matches: text.match_indices(&self.pat)
-                .map(|(i,_)| {
-                    Match::new(i, i + self.pat.len())
-                }).collect(),
+            matches: text
+                .match_indices(&self.pat)
+                .map(|(i, _)| Match::new(i, i + self.pat.len()))
+                .collect(),
             index: 0,
         }
     }
@@ -156,10 +151,11 @@ impl Search for RegexSearcher {
 
     fn find_iter(&self, text: &str) -> MatchIter {
         MatchIter {
-            matches: self.pat.find_iter(text)
-                .map(|m| {
-                    Match::new(m.start(), m.end())
-                }).collect(),
+            matches: self
+                .pat
+                .find_iter(text)
+                .map(|m| Match::new(m.start(), m.end()))
+                .collect(),
             index: 0,
         }
     }
@@ -174,9 +170,9 @@ impl Search for RegexSearcher {
                     Err(io::Error::new(io::ErrorKind::InvalidInput, "Syntax error"))
                 }
                 regex::Error::CompiledTooBig(_n) => Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "Compiled too big",
-                        )),
+                    io::ErrorKind::InvalidInput,
+                    "Compiled too big",
+                )),
                 _ => Err(io::Error::new(io::ErrorKind::Other, "Unknown regex error")),
             };
         }
@@ -196,38 +192,20 @@ mod tests {
 
         let mut searcher = PlaneSearcher::new();
         assert_eq!(searcher.set_pattern(&pat).unwrap(), ());
-        assert_eq!(
-            searcher.find(&text).unwrap(),
-            Match::new(1, 4)
-        );
+        assert_eq!(searcher.find(&text).unwrap(), Match::new(1, 4));
         let mut matches = searcher.find_iter(&text);
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(1, 4)
-        );
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(4, 7)
-        );
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(10, 13)
-        );
+        assert_eq!(matches.next().unwrap(), Match::new(1, 4));
+        assert_eq!(matches.next().unwrap(), Match::new(4, 7));
+        assert_eq!(matches.next().unwrap(), Match::new(10, 13));
         assert!(matches.next().is_none());
 
         let pat = "";
         let text = "xabcabcwowabc";
         assert_eq!(searcher.set_pattern(&pat).unwrap(), ());
-        assert_eq!(
-            searcher.find(&text).unwrap(),
-            Match::new(0, 0)
-        );
+        assert_eq!(searcher.find(&text).unwrap(), Match::new(0, 0));
         let mut matches = searcher.find_iter(&text);
         for i in 0..text.len() {
-            assert_eq!(
-                matches.next().unwrap(),
-                Match::new(i, i)
-            );
+            assert_eq!(matches.next().unwrap(), Match::new(i, i));
         }
 
         let pat = "abc";
@@ -246,38 +224,20 @@ mod tests {
         let mut searcher = RegexSearcher::new();
         assert_eq!(searcher.set_pattern(&pat).unwrap(), ());
 
-        assert_eq!(
-            searcher.find(&text).unwrap(),
-            Match::new(1, 4)
-        );
+        assert_eq!(searcher.find(&text).unwrap(), Match::new(1, 4));
 
         let mut matches = searcher.find_iter(&text);
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(1, 4)
-        );
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(4, 7)
-        );
-        assert_eq!(
-            matches.next().unwrap(),
-            Match::new(10, 13)
-        );
+        assert_eq!(matches.next().unwrap(), Match::new(1, 4));
+        assert_eq!(matches.next().unwrap(), Match::new(4, 7));
+        assert_eq!(matches.next().unwrap(), Match::new(10, 13));
 
         let pat = "";
         let text = "xabcabcwowabc";
         assert_eq!(searcher.set_pattern(&pat).unwrap(), ());
-        assert_eq!(
-            searcher.find(&text).unwrap(),
-            Match::new(0, 0)
-        );
+        assert_eq!(searcher.find(&text).unwrap(), Match::new(0, 0));
         let mut matches = searcher.find_iter(&text);
         for i in 0..text.len() {
-            assert_eq!(
-                matches.next().unwrap(),
-                Match::new(i, i)
-            );
+            assert_eq!(matches.next().unwrap(), Match::new(i, i));
         }
 
         let pat = r"a\wc";

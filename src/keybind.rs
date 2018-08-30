@@ -208,10 +208,16 @@ pub mod default {
                 PeepEvent::MoveUp(_) => PeepEvent::MoveUp(valid_num(self.number)),
                 PeepEvent::MoveLeft(_) => PeepEvent::MoveLeft(valid_num(self.number)),
                 PeepEvent::MoveRight(_) => PeepEvent::MoveRight(valid_num(self.number)),
-                PeepEvent::MoveDownHalfPages(_) => PeepEvent::MoveDownHalfPages(valid_num(self.number)),
+                PeepEvent::MoveDownHalfPages(_) => {
+                    PeepEvent::MoveDownHalfPages(valid_num(self.number))
+                }
                 PeepEvent::MoveUpHalfPages(_) => PeepEvent::MoveUpHalfPages(valid_num(self.number)),
-                PeepEvent::MoveLeftHalfPages(_) => PeepEvent::MoveLeftHalfPages(valid_num(self.number)),
-                PeepEvent::MoveRightHalfPages(_) => PeepEvent::MoveRightHalfPages(valid_num(self.number)),
+                PeepEvent::MoveLeftHalfPages(_) => {
+                    PeepEvent::MoveLeftHalfPages(valid_num(self.number))
+                }
+                PeepEvent::MoveRightHalfPages(_) => {
+                    PeepEvent::MoveRightHalfPages(valid_num(self.number))
+                }
                 PeepEvent::MoveDownPages(_) => PeepEvent::MoveDownPages(valid_num(self.number)),
                 PeepEvent::MoveUpPages(_) => PeepEvent::MoveUpPages(valid_num(self.number)),
                 PeepEvent::MoveToTopOfLines | PeepEvent::MoveToBottomOfLines => {
@@ -221,7 +227,9 @@ pub mod default {
                         PeepEvent::MoveToLineNumber(self.number - 1)
                     }
                 }
-                PeepEvent::MoveToLineNumber(_) => PeepEvent::MoveToLineNumber(valid_num(self.number)),
+                PeepEvent::MoveToLineNumber(_) => {
+                    PeepEvent::MoveToLineNumber(valid_num(self.number))
+                }
                 PeepEvent::IncrementLines(_) => PeepEvent::IncrementLines(valid_num(self.number)),
                 PeepEvent::DecrementLines(_) => PeepEvent::DecrementLines(valid_num(self.number)),
                 PeepEvent::SetNumOfLines(_) => PeepEvent::SetNumOfLines(valid_num(self.number)),
@@ -304,7 +312,10 @@ mod tests {
         let mut kb = default::KeyBind::new();
 
         // search commands
-        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(
+            kb.parse('/'),
+            Some(PeepEvent::SearchIncremental("".to_owned()))
+        );
         assert_eq!(
             kb.parse('w'),
             Some(PeepEvent::SearchIncremental("w".to_owned()))
@@ -323,7 +334,10 @@ mod tests {
         );
         assert_eq!(kb.parse('\n'), Some(PeepEvent::SearchTrigger));
 
-        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(
+            kb.parse('/'),
+            Some(PeepEvent::SearchIncremental("".to_owned()))
+        );
         assert_eq!(
             kb.parse('a'),
             Some(PeepEvent::SearchIncremental("a".to_owned()))
@@ -342,7 +356,10 @@ mod tests {
         );
         assert_eq!(kb.parse('\x08'), Some(PeepEvent::Cancel));
 
-        assert_eq!(kb.parse('/'), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(
+            kb.parse('/'),
+            Some(PeepEvent::SearchIncremental("".to_owned()))
+        );
         assert_eq!(
             kb.parse('w'),
             Some(PeepEvent::SearchIncremental("w".to_owned()))

@@ -1,7 +1,7 @@
-use termios;
-use std::os::unix::io::RawFd;
 use libc;
 use std::io::Stdin;
+use std::os::unix::io::RawFd;
+use termios;
 
 // re-export
 pub use termios::{
@@ -53,25 +53,41 @@ impl TermAttrSetter {
         }
     }
 
-    pub fn iflag(&mut self, set_flags: termios::tcflag_t, clear_flags: termios::tcflag_t) -> &mut Self {
+    pub fn iflag(
+        &mut self,
+        set_flags: termios::tcflag_t,
+        clear_flags: termios::tcflag_t,
+    ) -> &mut Self {
         self.custom.c_iflag |= set_flags;
         self.custom.c_iflag &= !clear_flags;
         self
     }
 
-    pub fn oflag(&mut self, set_flags: termios::tcflag_t, clear_flags: termios::tcflag_t) -> &mut Self {
+    pub fn oflag(
+        &mut self,
+        set_flags: termios::tcflag_t,
+        clear_flags: termios::tcflag_t,
+    ) -> &mut Self {
         self.custom.c_oflag |= set_flags;
         self.custom.c_oflag &= !clear_flags;
         self
     }
 
-    pub fn cflag(&mut self, set_flags: termios::tcflag_t, clear_flags: termios::tcflag_t) -> &mut Self {
+    pub fn cflag(
+        &mut self,
+        set_flags: termios::tcflag_t,
+        clear_flags: termios::tcflag_t,
+    ) -> &mut Self {
         self.custom.c_cflag |= set_flags;
         self.custom.c_cflag &= !clear_flags;
         self
     }
 
-    pub fn lflag(&mut self, set_flags: termios::tcflag_t, clear_flags: termios::tcflag_t) -> &mut Self {
+    pub fn lflag(
+        &mut self,
+        set_flags: termios::tcflag_t,
+        clear_flags: termios::tcflag_t,
+    ) -> &mut Self {
         self.custom.c_lflag |= set_flags;
         self.custom.c_lflag &= !clear_flags;
         self

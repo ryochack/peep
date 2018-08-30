@@ -35,4 +35,3 @@ pub enum PeepEvent {
     FileUpdated,
     SigInt,
 }
-
