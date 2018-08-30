@@ -153,8 +153,6 @@ impl App {
         // Key reading thread
         let _keythread = spawn(move || {
             let mut keyin = File::open("/dev/tty").unwrap();
-            // let reader = io::stdin();
-            // let mut reader = reader.lock();
             let mut kb = keybind::default::KeyBind::new();
             let mut keh = KeyEventHandler::new(&mut keyin, &mut kb);
 
@@ -176,14 +174,12 @@ impl App {
             if let Ok(event) = event_receiver.recv() {
                 if !self.follow_mode {
                     self.handle_normal(&event, &mut pane)?;
-                    match event {
-                        PeepEvent::Quit => {
-                            break;
-                        }
-                        _ => {}
-                    }
                 } else {
                     self.handle_follow(&event, &mut pane)?;
+                }
+
+                if event == PeepEvent::Quit {
+                    break;
                 }
             }
         }
@@ -336,7 +332,7 @@ impl App {
             PeepEvent::FollowMode => {
                 // Enter follow mode
                 self.follow_mode = true;
-                // Relaod file
+                // Reload file
                 self.read_buffer()?;
                 pane.goto_bottom_of_lines()?;
                 pane.set_message(Some(FOLLOWING_MESSAGE));
@@ -382,11 +378,21 @@ impl App {
                 pane.set_message(Some(FOLLOWING_MESSAGE));
                 pane.refresh()?;
             }
-            PeepEvent::SigInt => {
+            PeepEvent::FollowMode => {
                 // Leave follow mode
                 self.follow_mode = false;
                 pane.set_message(None);
                 pane.refresh()?;
+            }
+            PeepEvent::Quit => {
+                pane.quit();
+            }
+            PeepEvent::SigInt => {
+                // receive SIGINT
+                // ring a bel
+                pane.set_message(Some("\x07"));
+                pane.refresh()?;
+                pane.set_message(None);
             }
             _ => {}
         }
