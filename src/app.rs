@@ -372,6 +372,21 @@ impl App {
                 pane.set_height(n)?;
                 pane.refresh()?;
             }
+            PeepEvent::SearchIncremental(s) => {
+                pane.set_message(Some(&format!("/{}", s)));
+                if s.is_empty() {
+                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    pane.show_highlight(false);
+                } else {
+                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    pane.show_highlight(true);
+                }
+                pane.refresh()?;
+            }
+            PeepEvent::SearchTrigger => {
+                pane.set_message(None);
+                pane.refresh()?;
+            }
             PeepEvent::FileUpdated => {
                 self.read_buffer()?;
                 pane.goto_bottom_of_lines()?;
