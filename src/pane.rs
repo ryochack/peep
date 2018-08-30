@@ -70,7 +70,7 @@ impl<'a> Pane<'a> {
             // _highlight_word: "".to_owned(),
             // highlight_re: Regex::new("").unwrap(),
             message: "".to_owned(),
-            termsize_getter: Box::new(|| termion::terminal_size()),
+            termsize_getter: Box::new(termion::terminal_size),
         };
         pane.sweep();
         pane.move_to_message_line();
@@ -103,7 +103,7 @@ impl<'a> Pane<'a> {
         if self.numof_flushed_lines > 0 {
             s.push_str(&format!("{}", cursor_ext::PreviousLine(self.numof_flushed_lines as u16)));
         }
-        self.writer.borrow_mut().write(s.as_bytes()).unwrap();
+        self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
     }
 
     /// Highlight line with the highlight word
@@ -157,7 +157,7 @@ impl<'a> Pane<'a> {
                 if !nongraphic.is_empty() {
                     // CSI sequence mode
                     nongraphic.push(c);
-                    if &nongraphic == &pat {
+                    if nongraphic == pat {
                         // Match CSI sequence and leave CSI sequence mode
                         nongraphic.clear();
                         highlighting = !highlighting;
@@ -196,14 +196,14 @@ impl<'a> Pane<'a> {
         let s = logic_indices[range.start];
         let e = logic_indices
             .get(range.end - 1)
-            .unwrap_or(logic_indices.last().unwrap());
+            .unwrap_or_else(|| logic_indices.last().unwrap());
         let mut trimed = String::new();
-        if s.1 == true {
+        if s.1 {
             // if start with highlight, push CSI invert to head
             trimed.push_str(&format!("{}", termion::style::Invert));
         }
         trimed.push_str(raw.get(s.0..e.0 + 1).unwrap());
-        if e.1 == true {
+        if e.1 {
             // if end with highlight, push CSI Reset to end
             trimed.push_str(&format!("{}", termion::style::Reset));
         }
@@ -242,10 +242,7 @@ impl<'a> Pane<'a> {
         };
 
         // trimed line
-        let trimed = format!(
-            "{}",
-            Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1))
-        );
+        let trimed = Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1)).to_owned();
 
         // add extend marks
         let eol = if raw.len() > range.1 {
@@ -257,7 +254,7 @@ impl<'a> Pane<'a> {
         format!("{}{}{}{}", ln, sol, trimed, eol)
     }
 
-    pub fn refresh<'r>(&mut self) -> io::Result<()> {
+    pub fn refresh(&mut self) -> io::Result<()> {
         // content lines
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
@@ -279,20 +276,20 @@ impl<'a> Pane<'a> {
                 termion::style::Reset
             ));
         } else {
-            block.push_str(&format!("{}", self.message));
+            block.push_str(&self.message);
         };
 
         self.return_home();
         self.sweep();
-        self.writer.borrow_mut().write(block.as_bytes()).unwrap();
+        self.writer.borrow_mut().write_all(block.as_bytes()).unwrap();
         self.flush();
         self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
         Ok(())
     }
 
     pub fn quit(&self) {
-        write!(self.writer.borrow_mut(), "{}", termion::clear::CurrentLine);
-        writeln!(self.writer.borrow_mut());
+        write!(self.writer.borrow_mut(), "{}", termion::clear::CurrentLine).unwrap();
+        writeln!(self.writer.borrow_mut()).unwrap();
         self.flush();
     }
 
@@ -318,7 +315,7 @@ impl<'a> Pane<'a> {
 
     fn move_to_message_line(&self) {
         let ph = self.size().unwrap_or((1, 1)).1;
-        write!(self.writer.borrow_mut(), "{}", cursor_ext::NextLine(ph));
+        write!(self.writer.borrow_mut(), "{}", cursor_ext::NextLine(ph)).unwrap();
     }
 
     fn return_home(&self) {
@@ -327,7 +324,7 @@ impl<'a> Pane<'a> {
                 self.writer.borrow_mut(),
                 "{}",
                 cursor_ext::PreviousLine(self.numof_flushed_lines)
-            );
+            ).unwrap();
         }
     }
 
@@ -387,7 +384,7 @@ impl<'a> Pane<'a> {
     }
 
     // return actual scroll distance
-    pub fn scroll_up(&mut self, ss: ScrollStep) -> io::Result<u16> {
+    pub fn scroll_up(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.size()?.1);
         let astep = if self.cur_pos.1 > step {
             step
@@ -399,7 +396,7 @@ impl<'a> Pane<'a> {
     }
 
     // return actual scroll distance
-    pub fn scroll_down(&mut self, ss: ScrollStep) -> io::Result<u16> {
+    pub fn scroll_down(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.size()?.1);
         let end_y = self.limit_bottom_y()?;
         let astep = if self.cur_pos.1 + step < end_y {
@@ -412,7 +409,7 @@ impl<'a> Pane<'a> {
     }
 
     // return actual scroll distance
-    pub fn scroll_left(&mut self, ss: ScrollStep) -> io::Result<u16> {
+    pub fn scroll_left(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.size()?.0);
         let astep = if self.cur_pos.0 > step {
             step
@@ -424,12 +421,12 @@ impl<'a> Pane<'a> {
     }
 
     // return actual scroll distance
-    pub fn scroll_right(&mut self, ss: ScrollStep) -> io::Result<u16> {
+    pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.size()?.0);
         let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
-            .fold(0, |acc, x| cmp::max(acc, x)) as u16;
+            .fold(0, cmp::max) as u16;
         let x = self.limit_right_x(self.cur_pos.0 + step, max_visible_line_len)?;
         assert!(
             x >= self.cur_pos.0,
@@ -460,7 +457,7 @@ impl<'a> Pane<'a> {
         let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines().unwrap()]
             .iter()
             .map(|s| s.len())
-            .fold(0, |acc, x| cmp::max(acc, x)) as u16;
+            .fold(0, cmp::max) as u16;
         self.cur_pos.0 = self
             .limit_right_x(max_visible_line_len, max_visible_line_len)
             .unwrap();
@@ -481,7 +478,7 @@ impl<'a> Pane<'a> {
         let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
-            .fold(0, |acc, x| cmp::max(acc, x)) as u16;
+            .fold(0, cmp::max) as u16;
         self.cur_pos.0 = self.limit_right_x(offset, max_visible_line_len)?;
         Ok(self.cur_pos.0)
     }

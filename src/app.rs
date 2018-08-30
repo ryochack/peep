@@ -27,8 +27,8 @@ pub struct KeyEventHandler<'a> {
 impl<'a> KeyEventHandler<'a> {
     pub fn new(istream: &'a mut Read, parser: &'a mut keybind::KeyParser) -> Self {
         KeyEventHandler {
-            istream: istream,
-            parser: parser,
+            istream,
+            parser,
         }
     }
 
@@ -62,6 +62,12 @@ impl Drop for App {
             let ftty = File::open("/dev/tty").unwrap();
             tr.restore(ftty.as_raw_fd());
         }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -103,19 +109,17 @@ impl App {
             }
 
             stdin.blocking();
-        } else {
+        } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
-            if let Ok(mut file) = File::open(&self.file_path) {
-                self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
-                let mut bufreader = BufReader::new(file);
-                for v in bufreader.lines().map(|v| v.unwrap()) {
-                    // +1 is LR length
-                    self.seek_pos += v.as_bytes().len() as u64 + 1;
-                    self.linebuf.borrow_mut().push(v);
-                }
-            } else {
-                return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
+            self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
+            let mut bufreader = BufReader::new(file);
+            for v in bufreader.lines().map(|v| v.unwrap()) {
+                // +1 is LR length
+                self.seek_pos += v.as_bytes().len() as u64 + 1;
+                self.linebuf.borrow_mut().push(v);
             }
+        } else {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
         }
         Ok(())
     }
@@ -136,7 +140,7 @@ impl App {
             sig_sender.send(PeepEvent::SigInt).unwrap();
         }).expect("Error setting ctrl-c handler");
 
-        self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new()));
+        self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new("")));
 
         let mut pane = Pane::new(Box::new(RefCell::new(writer)));
         pane.load(self.linebuf.clone());
@@ -157,11 +161,8 @@ impl App {
             let mut keh = KeyEventHandler::new(&mut keyin, &mut kb);
 
             loop {
-                match keh.read() {
-                    Some(event) => {
-                        key_sender.send(event.clone()).unwrap();
-                    }
-                    None => {}
+                if let Some(event) = keh.read() {
+                    key_sender.send(event.clone()).unwrap();
                 }
             }
         });
@@ -189,43 +190,43 @@ impl App {
     fn handle_normal(&mut self, event: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
         match event {
             &PeepEvent::MoveDown(n) => {
-                pane.scroll_down(ScrollStep::Char(n))?;
+                pane.scroll_down(&ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveUp(n) => {
-                pane.scroll_up(ScrollStep::Char(n))?;
+                pane.scroll_up(&ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveLeft(n) => {
-                pane.scroll_left(ScrollStep::Char(n))?;
+                pane.scroll_left(&ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveRight(n) => {
-                pane.scroll_right(ScrollStep::Char(n))?;
+                pane.scroll_right(&ScrollStep::Char(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveDownHalfPages(n) => {
-                pane.scroll_down(ScrollStep::Halfpage(n))?;
+                pane.scroll_down(&ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveUpHalfPages(n) => {
-                pane.scroll_up(ScrollStep::Halfpage(n))?;
+                pane.scroll_up(&ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveLeftHalfPages(n) => {
-                pane.scroll_left(ScrollStep::Halfpage(n))?;
+                pane.scroll_left(&ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveRightHalfPages(n) => {
-                pane.scroll_right(ScrollStep::Halfpage(n))?;
+                pane.scroll_right(&ScrollStep::Halfpage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveDownPages(n) => {
-                pane.scroll_down(ScrollStep::Page(n))?;
+                pane.scroll_down(&ScrollStep::Page(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveUpPages(n) => {
-                pane.scroll_up(ScrollStep::Page(n))?;
+                pane.scroll_up(&ScrollStep::Page(n))?;
                 pane.refresh()?;
             }
             PeepEvent::MoveToHeadOfLine => {

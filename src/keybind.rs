@@ -32,6 +32,12 @@ pub mod default {
         cmap: HashMap<&'a str, PeepEvent>,
     }
 
+    impl<'a> Default for KeyBind<'a> {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl<'a> KeyBind<'a> {
         pub fn new() -> Self {
             let mut kb = KeyBind {
@@ -118,7 +124,7 @@ pub mod default {
             match c {
                 c if !c.is_control() => {
                     self.wip_keys.push(c);
-                    Some(PeepEvent::SearchIncremental(format!("{}", self.wip_keys)))
+                    Some(PeepEvent::SearchIncremental(self.wip_keys.to_owned()))
                 }
                 '\x08' | '\x7f' => {
                     // BackSpace, Delete
@@ -126,7 +132,7 @@ pub mod default {
                         self.trans_to_ready();
                         Some(PeepEvent::Cancel)
                     } else {
-                        Some(PeepEvent::SearchIncremental(format!("{}", self.wip_keys)))
+                        Some(PeepEvent::SearchIncremental(self.wip_keys.to_owned()))
                     }
                 }
                 '\n' => {

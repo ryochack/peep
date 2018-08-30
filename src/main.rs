@@ -45,7 +45,7 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
         process::exit(0);
     }
 
-    let mut app = App::new();
+    let mut app: App = Default::default();
     app.show_linenumber = matches.opt_present("N");
     app.follow_mode = matches.opt_present("f");
     if let Ok(Some(nlines)) = matches.opt_get::<u16>("n") {

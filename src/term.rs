@@ -45,9 +45,9 @@ pub enum CcSymbol {
 
 impl TermAttrSetter {
     pub fn new(fd: RawFd) -> TermAttrSetter {
-        let stat = termios::Termios::from_fd(fd).expect(&format!("invalid fd {:?}", fd));
+        let stat = termios::Termios::from_fd(fd).unwrap_or_else(|_| panic!("invalid fd {:?}", fd));
         Self {
-            fd: fd,
+            fd,
             default: stat,
             custom: stat,
         }

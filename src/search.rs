@@ -18,8 +18,8 @@ impl Match {
     }
     fn new(start: usize, end: usize) -> Match {
         Match {
-            start: start,
-            end: end,
+            start,
+            end,
         }
     }
 }
@@ -50,6 +50,7 @@ pub trait Search {
     fn set_pattern(&mut self, pat: &str) -> io::Result<()>;
 }
 
+#[derive(Default)]
 pub struct NullSearcher;
 
 impl NullSearcher {
@@ -79,7 +80,7 @@ impl Search for NullSearcher {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PlaneSearcher {
     pat: String,
 }
@@ -127,10 +128,16 @@ pub struct RegexSearcher {
 }
 
 impl RegexSearcher {
-    pub fn new() -> Self {
+    pub fn new(pat: &str) -> Self {
         Self {
-            pat: Regex::new("").unwrap(),
+            pat: Regex::new(pat).unwrap(),
         }
+    }
+}
+
+impl Default for RegexSearcher {
+    fn default() -> Self {
+        Self::new("")
     }
 }
 
