@@ -556,10 +556,10 @@ mod tests {
         // let w = io::stdout();
         // let mut w = w.lock();
         let f = OpenOptions::new().write(true).open("/dev/null").unwrap();
-        let mut w = BufWriter::new(f);
+        let w = BufWriter::new(f);
 
         let texts = Rc::new(RefCell::new(texts()));
-        let mut pane = Pane::new(&mut w);
+        let mut pane = Pane::new(Box::new(RefCell::new(w)));
         pane.load(texts.clone());
 
         let size_getter = || Ok((10, 4));
@@ -570,46 +570,46 @@ mod tests {
         assert!(pane.refresh().is_ok());
 
         // scroll down
-        assert_eq!(pane.scroll_down(ScrollStep::Char(1)).unwrap(), 1);
+        assert_eq!(pane.scroll_down(&ScrollStep::Char(1)).unwrap(), 1);
         pos.1 += 1;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_down(ScrollStep::Char(3)).unwrap(), 3);
+        assert_eq!(pane.scroll_down(&ScrollStep::Char(3)).unwrap(), 3);
         pos.1 += 3;
         assert_eq!(pane.position(), pos);
         assert_eq!(
-            pane.scroll_down(ScrollStep::Halfpage(1)).unwrap(),
+            pane.scroll_down(&ScrollStep::Halfpage(1)).unwrap(),
             size.1 / 2
         );
         pos.1 += size.1 / 2;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_down(ScrollStep::Page(1)).unwrap(), size.1);
+        assert_eq!(pane.scroll_down(&ScrollStep::Page(1)).unwrap(), size.1);
         pos.1 += size.1;
         assert_eq!(pane.position(), pos);
         // bottom limit
         let bottom = texts.borrow().len() as u16 - size.1;
         let remain = bottom - pos.1;
-        assert_eq!(pane.scroll_down(ScrollStep::Page(10)).unwrap(), remain);
+        assert_eq!(pane.scroll_down(&ScrollStep::Page(10)).unwrap(), remain);
         pos.1 = bottom;
         assert_eq!(pane.position(), pos);
 
         // scroll up
-        assert_eq!(pane.scroll_up(ScrollStep::Char(1)).unwrap(), 1);
+        assert_eq!(pane.scroll_up(&ScrollStep::Char(1)).unwrap(), 1);
         pos.1 -= 1;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_up(ScrollStep::Char(2)).unwrap(), 2);
+        assert_eq!(pane.scroll_up(&ScrollStep::Char(2)).unwrap(), 2);
         pos.1 -= 2;
         assert_eq!(pane.position(), pos);
         assert_eq!(
-            pane.scroll_up(ScrollStep::Halfpage(2)).unwrap(),
+            pane.scroll_up(&ScrollStep::Halfpage(2)).unwrap(),
             (size.1 * 2) / 2
         );
         pos.1 -= (size.1 * 2) / 2;
         assert_eq!(pane.position(), pos);
-        assert_eq!(pane.scroll_up(ScrollStep::Page(1)).unwrap(), size.1);
+        assert_eq!(pane.scroll_up(&ScrollStep::Page(1)).unwrap(), size.1);
         pos.1 -= size.1;
         assert_eq!(pane.position(), pos);
         // top limit
-        assert_eq!(pane.scroll_up(ScrollStep::Page(10)).unwrap(), pos.1);
+        assert_eq!(pane.scroll_up(&ScrollStep::Page(10)).unwrap(), pos.1);
         pos.1 = 0;
         assert_eq!(pane.position(), pos);
     }
@@ -620,18 +620,18 @@ mod tests {
         use std::{thread, time};
 
         let w = io::stdout();
-        let mut w = w.lock();
+        let w = w.lock();
         let texts = Rc::new(RefCell::new(texts()));
-        let mut pane = Pane::new(&mut w);
+        let mut pane = Pane::new(Box::new(RefCell::new(w)));
         pane.replace_termsize_getter(Box::new(|| Ok((10, 5))));
         pane.load(texts.clone());
         let _ = pane.refresh();
         thread::sleep(time::Duration::from_millis(200));
-        let _ = pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(&ScrollStep::Char(1));
         thread::sleep(time::Duration::from_millis(200));
-        let _ = pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(&ScrollStep::Char(1));
         thread::sleep(time::Duration::from_millis(200));
-        let _ = pane.scroll_down(ScrollStep::Char(1));
+        let _ = pane.scroll_down(&ScrollStep::Char(1));
 
         let _ = pane.set_height(10);
         let _ = pane.refresh();

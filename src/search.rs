@@ -221,7 +221,7 @@ mod tests {
         let pat = r"a\wc";
         let text = "xabcabcwowabc";
 
-        let mut searcher = RegexSearcher::new();
+        let mut searcher = RegexSearcher::new("");
         assert_eq!(searcher.set_pattern(&pat).unwrap(), ());
 
         assert_eq!(searcher.find(&text).unwrap(), Match::new(1, 4));
