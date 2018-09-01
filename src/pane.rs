@@ -578,13 +578,15 @@ mod tests {
             "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
-        let (size, sizer) = gen_sizer(2, 4);
+        let (_, sizer) = gen_sizer(2, 5);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
         pane.replace_termsize_getter(sizer);
+        let pane_height = 4;
+        let _ = pane.set_height(pane_height);
 
-        let stride_page  = size.1;
-        let stride_hpage = size.1 / 2;
+        let stride_page  = pane_height;
+        let stride_hpage = pane_height / 2;
 
         // in range
         {
@@ -618,16 +620,16 @@ mod tests {
         {
             assert_eq!(
                 pane.scroll_down(&ScrollStep::Page(10)).unwrap(),
-                texts.borrow().len() as u16 - size.1
+                texts.borrow().len() as u16 - pane_height
             );
             assert_eq!(
                 pane.position(),
-                (0, texts.borrow().len() as u16 - size.1)
+                (0, texts.borrow().len() as u16 - pane_height)
             );
 
             assert_eq!(
                 pane.scroll_up(&ScrollStep::Page(10)).unwrap(),
-                texts.borrow().len() as u16 - size.1
+                texts.borrow().len() as u16 - pane_height
             );
             assert_eq!(pane.position(), (0, 0));
         }
@@ -716,19 +718,21 @@ mod tests {
             "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
-        let (size, sizer) = gen_sizer(2, 4);
+        let (_, sizer) = gen_sizer(2, 5);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
         pane.replace_termsize_getter(sizer);
+        let pane_height = 4;
+        let _ = pane.set_height(pane_height);
 
         pane.scroll_right(&ScrollStep::Char(1)).unwrap();
         assert_eq!(
             pane.goto_bottom_of_lines().unwrap(),
-            (0, texts.borrow().len() as u16 - size.1)
+            (0, texts.borrow().len() as u16 - pane_height)
         );
         assert_eq!(
             pane.position(),
-            (0, texts.borrow().len() as u16 - size.1)
+            (0, texts.borrow().len() as u16 - pane_height)
         );
 
         pane.scroll_right(&ScrollStep::Char(1)).unwrap();
