@@ -61,7 +61,7 @@ impl<'a> Pane<'a> {
     const MESSAGE_BAR_HEIGHT: u16 = 1;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
-        let pane = Pane {
+        let mut pane = Pane {
             linebuf: Rc::new(RefCell::new(Vec::new())),
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
@@ -75,7 +75,12 @@ impl<'a> Pane<'a> {
             message: "".to_owned(),
             termsize_getter: Box::new(termion::terminal_size),
         };
-        pane.sweep();
+
+        // limit pane height if terminal height is less than pane height.
+        pane.set_height(DEFAULT_PANE_HEIGHT).expect("terminal_size get error");
+        pane.numof_flushed_lines = pane.height;
+
+        pane.sweep(pane.height);
         pane.move_to_message_line();
         pane.flush();
         pane
@@ -97,18 +102,18 @@ impl<'a> Pane<'a> {
         self.writer.borrow_mut().flush().unwrap();
     }
 
-    fn sweep(&self) {
+    fn sweep(&self, n: u16) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
-        for _ in 0..self.numof_flushed_lines {
+        for _ in 0..n {
             s.push_str(&format!("{}", termion::clear::CurrentLine));
             s.push_str("\n");
         }
         s.push_str(&format!("{}", termion::clear::CurrentLine));
-        if self.numof_flushed_lines > 0 {
+        if n > 0 {
             s.push_str(&format!(
                 "{}",
-                cursor_ext::PreviousLine(self.numof_flushed_lines as u16)
+                cursor_ext::PreviousLine(n)
             ));
         }
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
@@ -269,7 +274,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
-        // content lines
+        // decorate content lines
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
         for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
@@ -279,6 +284,15 @@ impl<'a> Pane<'a> {
             block.push_str(&format!(
                 "{}\n",
                 self.decorate(&line, (buf_range.start + i) as u16)
+            ));
+        }
+
+        // move down to message bar position
+        let numof_lines_to_message_bar = self.height - buf_range.len() as u16;
+        if numof_lines_to_message_bar > 0 {
+            block.push_str(&format!(
+                    "{}",
+                    cursor_ext::NextLine(numof_lines_to_message_bar)
             ));
         }
 
@@ -294,13 +308,13 @@ impl<'a> Pane<'a> {
         };
 
         self.return_home();
-        self.sweep();
+        self.sweep(cmp::max(self.numof_flushed_lines, self.height));
         self.writer
             .borrow_mut()
             .write_all(block.as_bytes())
             .unwrap();
         self.flush();
-        self.numof_flushed_lines = (buf_range.end - buf_range.start) as u16;
+        self.numof_flushed_lines = self.height;
         Ok(())
     }
 
