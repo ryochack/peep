@@ -17,7 +17,7 @@ use pane::{Pane, ScrollStep};
 use search;
 use term::{self, Block};
 
-static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (interrupt to abort)\x1b[0m";
+static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (press 'F' to abort)\x1b[0m";
 
 pub struct KeyEventHandler<'a> {
     istream: &'a mut Read,
