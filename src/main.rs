@@ -1,8 +1,9 @@
 extern crate getopts;
+extern crate termion;
 
 use getopts::Options;
 use std::env;
-use std::io;
+use std::io::{self, Write};
 
 extern crate peep;
 use peep::app::App;
@@ -55,6 +56,11 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
     let file_path = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
+        if termion::is_tty(&io::stdin()) {
+            // not find file name and pipe input
+            writeln!(io::stderr(), "Missing filename (\"{} --help\" for help)", prog);
+            process::exit(0);
+        }
         "-".to_owned()
     };
 
