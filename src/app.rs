@@ -78,7 +78,7 @@ impl App {
 
         App {
             show_linenumber: false,
-            nlines: 5,
+            nlines: 10,
             follow_mode: false,
             file_path: String::new(),
             seek_pos: 0,

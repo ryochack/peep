@@ -9,7 +9,7 @@ use std::ops;
 use std::rc::Rc;
 use termion;
 
-const DEFAULT_PANE_HEIGHT: u16 = 5;
+const DEFAULT_PANE_HEIGHT: u16 = 1;
 
 use std::fmt;
 pub struct ExtendMark(pub char);
