@@ -203,19 +203,19 @@ impl App {
                 pane.refresh()?;
             }
             &PeepEvent::MoveDownHalfPages(n) => {
-                pane.scroll_down(&ScrollStep::Halfpage(n))?;
+                pane.scroll_down(&ScrollStep::HalfPage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveUpHalfPages(n) => {
-                pane.scroll_up(&ScrollStep::Halfpage(n))?;
+                pane.scroll_up(&ScrollStep::HalfPage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveLeftHalfPages(n) => {
-                pane.scroll_left(&ScrollStep::Halfpage(n))?;
+                pane.scroll_left(&ScrollStep::HalfPage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveRightHalfPages(n) => {
-                pane.scroll_right(&ScrollStep::Halfpage(n))?;
+                pane.scroll_right(&ScrollStep::HalfPage(n))?;
                 pane.refresh()?;
             }
             &PeepEvent::MoveDownPages(n) => {
