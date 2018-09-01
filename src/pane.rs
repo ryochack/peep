@@ -58,6 +58,7 @@ impl ScrollStep {
 
 impl<'a> Pane<'a> {
     const MARGIN_RIGHT_WIDTH: u16 = 2;
+    const MESSAGE_BAR_HEIGHT: u16 = 1;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
         let pane = Pane {
@@ -503,7 +504,7 @@ impl<'a> Pane<'a> {
     /// Pane height is limited by the actual terminal height.
     /// Return acutually set pane height.
     pub fn set_height(&mut self, n: u16) -> io::Result<u16> {
-        let max = (*self.termsize_getter)()?.1;
+        let max = (*self.termsize_getter)()?.1 - Pane::MESSAGE_BAR_HEIGHT;
         self.height = if n == 0 {
             1
         } else if n > max {
@@ -775,10 +776,10 @@ mod tests {
         assert_eq!(pane.size().unwrap(), (1, 5));
         assert_eq!(pane.set_height(0).unwrap(), 1);
         assert_eq!(pane.size().unwrap(), (1, 1));
-        assert_eq!(pane.set_height(size.1).unwrap(), size.1);
-        assert_eq!(pane.size().unwrap(), (1, size.1));
-        assert_eq!(pane.set_height(size.1 + 1).unwrap(), size.1);
-        assert_eq!(pane.size().unwrap(), (1, size.1));
+        assert_eq!(pane.set_height(size.1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
+        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(pane.set_height(size.1 + 1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
+        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
         assert_eq!(pane.size().unwrap(), (1, 5));
@@ -795,8 +796,8 @@ mod tests {
         assert_eq!(pane.size().unwrap(), (1, 6));
         assert_eq!(pane.increment_height(3).unwrap(), 9);
         assert_eq!(pane.size().unwrap(), (1, 9));
-        assert_eq!(pane.increment_height(100).unwrap(), size.1);
-        assert_eq!(pane.size().unwrap(), (1, size.1));
+        assert_eq!(pane.increment_height(100).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
+        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
     }
 
     #[test]
