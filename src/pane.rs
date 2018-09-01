@@ -202,7 +202,7 @@ impl<'a> Pane<'a> {
         }
 
         let s = logic_indices[range.start];
-        let e = logic_indices
+        let mut e = *logic_indices
             .get(range.end - 1)
             .unwrap_or_else(|| logic_indices.last().unwrap());
         let mut trimed = String::new();
@@ -210,7 +210,12 @@ impl<'a> Pane<'a> {
             // if start with highlight, push CSI invert to head
             trimed.push_str(&format!("{}", termion::style::Invert));
         }
-        trimed.push_str(raw.get(s.0..e.0 + 1).unwrap());
+
+        // If end index is not UTF-8 code char boundary, search next char to find boundary.
+        e.0 += 1;
+        while !raw.is_char_boundary(e.0) { e.0 += 1; }
+
+        trimed.push_str(raw.get(s.0..e.0).unwrap());
         if e.1 {
             // if end with highlight, push CSI Reset to end
             trimed.push_str(&format!("{}", termion::style::Reset));
@@ -943,6 +948,13 @@ mod tests {
         assert_eq!(Pane::trim(&csi_contained, 7..8), "\x1B[7m7\x1B[m");
         assert_eq!(Pane::trim(&csi_contained, 7..9), "\x1B[7m7\x1B[m8");
         assert_eq!(Pane::trim(&csi_contained, 8..10), "89");
+
+        let multibyte_str = "it becomes the new default for subse‐";
+        println!("length = {}", multibyte_str.len());
+        assert_eq!(
+            Pane::trim(&multibyte_str, 0..multibyte_str.len()),
+            "it becomes the new default for subse‐"
+        );
     }
 
     #[test]
