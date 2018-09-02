@@ -12,3 +12,4 @@ pub mod keybind;
 pub mod pane;
 pub mod search;
 pub mod term;
+pub mod logger;
