@@ -1,0 +1,14 @@
+language: rust
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+os:
+  - linux
+  - osx
+
+script:
+  - cargo build --verbose --all
+  - RUST_BACKTRACE=1 cargo test --verbose --all -- --test-threads=1
