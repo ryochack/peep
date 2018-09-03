@@ -3,6 +3,7 @@ extern crate nix;
 extern crate regex;
 extern crate termion;
 extern crate termios;
+extern crate mio;
 
 pub mod app;
 pub mod csi;

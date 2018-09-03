@@ -98,13 +98,34 @@ impl App {
             }
 
             stdin.nonblocking();
+            {
+                use mio::{Events, Ready, Poll, PollOpt, Token};
+                use mio::unix::EventedFd;
+                use std::os::unix::io::AsRawFd;
+                use std::time::Duration;
 
-            let stdinlock = stdin.lock();
-            let mut lines_iter = stdinlock.lines();
-            while let Some(Ok(v)) = lines_iter.next() {
-                self.linebuf.borrow_mut().push(v);
+                let poll = Poll::new()?;
+                poll.register(&EventedFd(&stdin.as_raw_fd()),
+                              Token(0),
+                              Ready::readable(),
+                              PollOpt::edge())?;
+                let mut events = Events::with_capacity(1024);
+
+                loop {
+                    poll.poll(&mut events, Some(Duration::from_millis(200)))?;
+                    if events.is_empty() {
+                        // time out
+                        break;
+                    }
+                    for _event in &events {
+                        let stdinlock = stdin.lock();
+                        let mut lines_iter = stdinlock.lines();
+                        while let Some(Ok(v)) = lines_iter.next() {
+                            self.linebuf.borrow_mut().push(v);
+                        }
+                    }
+                }
             }
-
             stdin.blocking();
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
