@@ -8,6 +8,6 @@ pub fn log(msg: &str) {
         .create(true)
         .append(true)
         .open(LOG_PATH).unwrap();
-    writeln!(&mut w, "{}", msg);
+    let _ = writeln!(&mut w, "{}", msg);
 }
 

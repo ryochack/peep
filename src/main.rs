@@ -58,7 +58,7 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
     } else {
         if termion::is_tty(&io::stdin()) {
             // not find file name and pipe input
-            writeln!(io::stderr(), "Missing filename (\"{} --help\" for help)", prog);
+            writeln!(io::stderr(), "Missing filename (\"{} --help\" for help)", prog).unwrap();
             process::exit(0);
         }
         "-".to_owned()
