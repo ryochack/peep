@@ -241,7 +241,7 @@ impl<'a> Pane<'a> {
         let right_blank_margin: usize = 2;
         let mut range = (
             self.cur_pos.0 as usize,
-            (self.cur_pos.0 + self.size().unwrap().0) as usize - right_blank_margin,
+            (self.cur_pos.0 + self.pane_size().unwrap().0) as usize - right_blank_margin,
         );
 
         // add line number
@@ -275,6 +275,7 @@ impl<'a> Pane<'a> {
 
     pub fn refresh(&mut self) -> io::Result<()> {
         // decorate content lines
+        let pane_height = self.pane_size()?.1;
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
         for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
@@ -288,7 +289,7 @@ impl<'a> Pane<'a> {
         }
 
         // move down to message bar position
-        let numof_lines_to_message_bar = self.height - buf_range.len() as u16;
+        let numof_lines_to_message_bar = pane_height - buf_range.len() as u16;
         if numof_lines_to_message_bar > 0 {
             block.push_str(&format!(
                     "{}",
@@ -308,13 +309,13 @@ impl<'a> Pane<'a> {
         };
 
         self.return_home();
-        self.sweep(cmp::max(self.numof_flushed_lines, self.height));
+        self.sweep(cmp::max(self.numof_flushed_lines, pane_height));
         self.writer
             .borrow_mut()
             .write_all(block.as_bytes())
             .unwrap();
         self.flush();
-        self.numof_flushed_lines = self.height;
+        self.numof_flushed_lines = pane_height;
         Ok(())
     }
 
@@ -344,7 +345,7 @@ impl<'a> Pane<'a> {
     }
 
     fn move_to_message_line(&self) {
-        let ph = self.size().unwrap_or((1, 1)).1;
+        let ph = self.pane_size().unwrap_or((1, 1)).1;
         write!(self.writer.borrow_mut(), "{}", cursor_ext::NextLine(ph)).unwrap();
     }
 
@@ -358,8 +359,8 @@ impl<'a> Pane<'a> {
         }
     }
 
-    /// Return (width, height)
-    pub fn size(&self) -> io::Result<(u16, u16)> {
+    /// Return pane size (width, height)
+    pub fn pane_size(&self) -> io::Result<(u16, u16)> {
         (*self.termsize_getter)().map(|(tw, th)| (tw, cmp::min(th, self.height)))
     }
 
@@ -371,18 +372,18 @@ impl<'a> Pane<'a> {
     /// Return the end of y that is considered buffer lines and window size
     fn limit_bottom_y(&self) -> io::Result<u16> {
         let linebuf_height = self.linebuf.borrow().len() as u16;
-        let pane_height = self.size()?.1;
+        let pane_height = self.pane_size()?.1;
 
         Ok(if linebuf_height > pane_height {
             linebuf_height - pane_height
         } else {
-            linebuf_height
+            0
         })
     }
 
     /// Return range of visible lines from current line to buffer line end or bottom of pane.
     fn range_of_visible_lines(&self) -> io::Result<ops::Range<usize>> {
-        let pane_height = self.size()?.1 as usize;
+        let pane_height = self.pane_size()?.1 as usize;
         let buf_height = self.linebuf.borrow().len();
         let y = self.cur_pos.1 as usize;
 
@@ -398,7 +399,7 @@ impl<'a> Pane<'a> {
     /// Return the horizontal offset that is considered pane size and string length
     fn limit_right_x(&self, next_x: u16, max_len: u16) -> io::Result<u16> {
         let margined_len = max_len + Pane::MARGIN_RIGHT_WIDTH;
-        let pane_width = self.size()?.0;
+        let pane_width = self.pane_size()?.0;
 
         Ok(if pane_width >= margined_len {
             0
@@ -411,7 +412,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_up(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.size()?.1);
+        let step = ss.to_numof_chars(self.pane_size()?.1);
         let astep = if self.cur_pos.1 > step {
             step
         } else {
@@ -423,7 +424,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_down(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.size()?.1);
+        let step = ss.to_numof_chars(self.pane_size()?.1);
         let end_y = self.limit_bottom_y()?;
         let astep = if self.cur_pos.1 + step < end_y {
             step
@@ -436,7 +437,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_left(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.size()?.0);
+        let step = ss.to_numof_chars(self.pane_size()?.0);
         let astep = if self.cur_pos.0 > step {
             step
         } else {
@@ -448,7 +449,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.size()?.0);
+        let step = ss.to_numof_chars(self.pane_size()?.0);
         let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
@@ -750,6 +751,34 @@ mod tests {
             pane.position(),
             (0, texts.borrow().len() as u16 - 1)
         );
+
+        // case: buffer height is less than pane height
+        let (_, sizer) = gen_sizer(2, 10);
+        let t = ["", "", "", ""];
+        let texts = gen_texts(&t);
+        pane.load(texts.clone());
+        pane.replace_termsize_getter(sizer);
+        let pane_height = 8;
+        let _ = pane.set_height(pane_height);
+        assert_eq!(
+            pane.goto_bottom_of_lines().unwrap(),
+            (0, 0)
+        );
+        assert_eq!(
+            pane.position(),
+            (0, 0)
+        );
+        let t = ["", "", "", "", "", "", "", "", "", ""];
+        let texts = gen_texts(&t);
+        pane.load(texts.clone());
+        assert_eq!(
+            pane.goto_bottom_of_lines().unwrap(),
+            (0, 2)
+        );
+        assert_eq!(
+            pane.position(),
+            (0, 2)
+        );
     }
 
     #[test]
@@ -790,31 +819,31 @@ mod tests {
         pane.replace_termsize_getter(sizer);
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
-        assert_eq!(pane.size().unwrap(), (1, 5));
+        assert_eq!(pane.pane_size().unwrap(), (1, 5));
         assert_eq!(pane.set_height(0).unwrap(), 1);
-        assert_eq!(pane.size().unwrap(), (1, 1));
+        assert_eq!(pane.pane_size().unwrap(), (1, 1));
         assert_eq!(pane.set_height(size.1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
         assert_eq!(pane.set_height(size.1 + 1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
-        assert_eq!(pane.size().unwrap(), (1, 5));
+        assert_eq!(pane.pane_size().unwrap(), (1, 5));
         assert_eq!(pane.decrement_height(1).unwrap(), 4);
-        assert_eq!(pane.size().unwrap(), (1, 4));
+        assert_eq!(pane.pane_size().unwrap(), (1, 4));
         assert_eq!(pane.decrement_height(3).unwrap(), 1);
-        assert_eq!(pane.size().unwrap(), (1, 1));
+        assert_eq!(pane.pane_size().unwrap(), (1, 1));
         assert_eq!(pane.decrement_height(100).unwrap(), 1);
-        assert_eq!(pane.size().unwrap(), (1, 1));
+        assert_eq!(pane.pane_size().unwrap(), (1, 1));
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
-        assert_eq!(pane.size().unwrap(), (1, 5));
+        assert_eq!(pane.pane_size().unwrap(), (1, 5));
         assert_eq!(pane.increment_height(1).unwrap(), 6);
-        assert_eq!(pane.size().unwrap(), (1, 6));
+        assert_eq!(pane.pane_size().unwrap(), (1, 6));
         assert_eq!(pane.increment_height(3).unwrap(), 9);
-        assert_eq!(pane.size().unwrap(), (1, 9));
+        assert_eq!(pane.pane_size().unwrap(), (1, 9));
         assert_eq!(pane.increment_height(100).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
     }
 
     #[test]
