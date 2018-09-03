@@ -320,7 +320,6 @@ impl<'a> Pane<'a> {
 
     pub fn quit(&self) {
         write!(self.writer.borrow_mut(), "{}", termion::clear::CurrentLine).unwrap();
-        writeln!(self.writer.borrow_mut()).unwrap();
         self.flush();
     }
 
