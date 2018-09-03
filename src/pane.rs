@@ -70,10 +70,12 @@ impl<'a> Pane<'a> {
             show_linenumber: false,
             show_highlight: false,
             hlsearcher: Rc::new(RefCell::new(NullSearcher::new())),
-            // _highlight_word: "".to_owned(),
-            // highlight_re: Regex::new("").unwrap(),
             message: "".to_owned(),
-            termsize_getter: Box::new(termion::terminal_size),
+            termsize_getter: if cfg!(test) {
+                Box::new(move || Ok((10, 10)))
+            } else {
+                Box::new(termion::terminal_size)
+            },
         };
 
         // limit pane height if terminal height is less than pane height.
