@@ -88,45 +88,50 @@ impl App {
         }
     }
 
+    // async read from stdin with timeout
+    fn async_pipe_read(&mut self) -> io::Result<()> {
+        use mio::{Events, Ready, Poll, PollOpt, Token};
+        use mio::unix::EventedFd;
+        use std::os::unix::io::AsRawFd;
+        use std::time::Duration;
+
+        let stdin = io::stdin();
+
+        let poll = Poll::new()?;
+        poll.register(&EventedFd(&stdin.as_raw_fd()),
+        Token(0),
+        Ready::readable(),
+        PollOpt::edge())?;
+        let mut events = Events::with_capacity(1024);
+
+        stdin.nonblocking();
+        loop {
+            poll.poll(&mut events, Some(Duration::from_millis(200)))?;
+            if events.is_empty() {
+                // time out
+                break;
+            }
+            for _event in &events {
+                let stdinlock = stdin.lock();
+                let mut lines_iter = stdinlock.lines();
+                while let Some(Ok(v)) = lines_iter.next() {
+                    self.linebuf.borrow_mut().push(v);
+                }
+            }
+        }
+        stdin.blocking();
+
+        Ok(())
+    }
+
     fn read_buffer(&mut self) -> io::Result<()> {
         if self.file_path == "-" {
             // read from stdin if pipe
-            let stdin = io::stdin();
-            if termion::is_tty(&stdin) {
+            if termion::is_tty(&io::stdin()) {
                 // stdin is tty. not pipe.
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
             }
-
-            stdin.nonblocking();
-            {
-                use mio::{Events, Ready, Poll, PollOpt, Token};
-                use mio::unix::EventedFd;
-                use std::os::unix::io::AsRawFd;
-                use std::time::Duration;
-
-                let poll = Poll::new()?;
-                poll.register(&EventedFd(&stdin.as_raw_fd()),
-                              Token(0),
-                              Ready::readable(),
-                              PollOpt::edge())?;
-                let mut events = Events::with_capacity(1024);
-
-                loop {
-                    poll.poll(&mut events, Some(Duration::from_millis(200)))?;
-                    if events.is_empty() {
-                        // time out
-                        break;
-                    }
-                    for _event in &events {
-                        let stdinlock = stdin.lock();
-                        let mut lines_iter = stdinlock.lines();
-                        while let Some(Ok(v)) = lines_iter.next() {
-                            self.linebuf.borrow_mut().push(v);
-                        }
-                    }
-                }
-            }
-            stdin.blocking();
+            self.async_pipe_read()?;
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
