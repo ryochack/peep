@@ -195,117 +195,7 @@ impl<'a> Pane<'a> {
         hlline
     }
 
-    /// Highlight line with the highlight word
-    fn highlight_words(&self, raw: &str) -> String {
-        let mut line = String::new();
-        let mut i = 0;
-        for m in self.hlsearcher.borrow().find_iter(raw) {
-            let hl = (m.start(), m.end());
-            line.push_str(raw.get(i..hl.0).unwrap_or("#"));
-            line.push_str(&format!("{}", termion::style::Invert));
-            line.push_str(raw.get(hl.0..hl.1).unwrap_or("#"));
-            line.push_str(&format!("{}", termion::style::Reset));
-            i = hl.1;
-        }
-        if i < raw.len() {
-            line.push_str(raw.get(i..).unwrap_or("#"));
-        }
-        line
-    }
-
-    //    ....[[[....]]]....
-    // [:  1   2  3   4
-    //  1: ^
-    //  2:   ^
-    //  3:        ^           (highlighting)
-    //  4:              ^
-    //
-    //    ....[[[....]]]....
-    // ]:     1  2   3   4
-    //  1:   ^
-    //  2:       ^            (highlighting)
-    //  3:              ^
-    // # ORIGINAL
-    // "impl<'a>"
-    //   ~~       :Hilight
-    //
-    // # HIGHLIGHT STR
-    // [0:'i'][1:'\u{1b}'][2:'['][3:'7'][4:'m'][5:'m'][6:'p'][7:'\u{1b}'][8:'['][9:'m'][10:'l'][11:'<'][12:'\''][13:'a'][14:'>']
-    // # LOGIC INDEX
-    // [0:'i'][5:('m',HL)][6:('p',HL)][10:'l'][11:'<'][12:'\''][13:'a'][14:'>']
-    //
-    /// Generate indices that ignore CSI sequence
-    /// This function return tuple (index, is_highlighting)
-    fn gen_logic_indices(raw: &str) -> Vec<(usize, bool)> {
-        let mut nongraphic = String::new();
-        let mut pat = format!("{}", termion::style::Invert);
-        let mut highlighting = false;
-
-        raw.char_indices()
-            .filter_map(move |(i, c)| {
-                if !nongraphic.is_empty() {
-                    // CSI sequence mode
-                    nongraphic.push(c);
-                    if nongraphic == pat {
-                        // Match CSI sequence and leave CSI sequence mode
-                        nongraphic.clear();
-                        highlighting = !highlighting;
-                        pat = if highlighting {
-                            format!("{}", termion::style::Reset)
-                        } else {
-                            format!("{}", termion::style::Invert)
-                        };
-                    }
-                    None
-                } else if c == '\x1B' {
-                    // Enter CSI sequence mode
-                    nongraphic.push(c);
-                    None
-                } else {
-                    Some((i, highlighting))
-                }
-            }).collect::<Vec<(usize, bool)>>()
-    }
-
-    /// Trim with logical length to fit pane width.
-    /// This function consider CSI sequence.
-    fn trim(raw: &str, range: ops::Range<usize>) -> String {
-        if raw.is_empty() || raw.len() < range.start {
-            return raw[0..0].to_owned();
-        }
-
-        let logic_indices = Pane::gen_logic_indices(raw);
-
-        if logic_indices.is_empty() {
-            return raw.to_owned();
-        }
-        if logic_indices.len() <= range.start {
-            return raw[0..0].to_owned();
-        }
-
-        let s = logic_indices[range.start];
-        let mut e = *logic_indices
-            .get(range.end - 1)
-            .unwrap_or_else(|| logic_indices.last().unwrap());
-        let mut trimed = String::new();
-        if s.1 {
-            // if start with highlight, push CSI invert to head
-            trimed.push_str(&format!("{}", termion::style::Invert));
-        }
-
-        // If end index is not UTF-8 code char boundary, search next char to find boundary.
-        e.0 += 1;
-        while !raw.is_char_boundary(e.0) { e.0 += 1; }
-
-        trimed.push_str(raw.get(s.0..e.0).unwrap());
-        if e.1 {
-            // if end with highlight, push CSI Reset to end
-            trimed.push_str(&format!("{}", termion::style::Reset));
-        }
-        trimed
-    }
-
-    /// get ranges that is considered unicode width
+    /// Get ranges that is considered unicode width
     fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
         use unicode_width::UnicodeWidthChar;
 
@@ -346,7 +236,8 @@ impl<'a> Pane<'a> {
         (us, ue)
     }
 
-    fn decorate2(&self, raw: &str, line_number: u16) -> String {
+    /// Decorate line
+    fn decorate(&self, raw: &str, line_number: u16) -> String {
         let extend_mark_space: usize = 2;
 
         // visble raw trimming range
@@ -399,50 +290,6 @@ impl<'a> Pane<'a> {
         format!("{}{}{}{}", lnum, sol, hlline, eol)
     }
 
-    // Decorate line
-    fn decorate(&self, raw: &str, line_number: u16) -> String {
-        let hlline = if self.show_highlight {
-            self.highlight_words(raw)
-        } else {
-            raw.to_owned()
-        };
-
-        // right margin is for extend marks
-        let right_blank_margin: usize = 2;
-        let mut range = (
-            self.cur_pos.0 as usize,
-            (self.cur_pos.0 + self.pane_size().unwrap().0) as usize - right_blank_margin,
-        );
-
-        // add line number
-        let ln = if self.show_linenumber {
-            let linenumber_space = 4;
-            range.1 -= linenumber_space;
-            format!("{:>4}", line_number + 1)
-        } else {
-            String::new()
-        };
-
-        // add extend marks
-        let sol = if range.0 > 0 {
-            format!("{}", ExtendMark('+'))
-        } else {
-            " ".to_owned()
-        };
-
-        // trimed line
-        let trimed = Pane::trim(&hlline, range.0..cmp::min(raw.len(), range.1)).to_owned();
-
-        // add extend marks
-        let eol = if raw.len() > range.1 {
-            format!("{}", ExtendMark('+'))
-        } else {
-            format!("{}", termion::style::Reset)
-        };
-
-        format!("{}{}{}{}", ln, sol, trimed, eol)
-    }
-
     pub fn refresh(&mut self) -> io::Result<()> {
         // decorate content lines
         let pane_height = self.pane_size()?.1;
@@ -454,7 +301,7 @@ impl<'a> Pane<'a> {
         {
             block.push_str(&format!(
                 "{}\n",
-                self.decorate2(&line, (buf_range.start + i) as u16)
+                self.decorate(&line, (buf_range.start + i) as u16)
             ));
         }
 
@@ -1084,99 +931,6 @@ mod tests {
     #[allow(dead_code)]
     fn test_quit() {
         unimplemented!();
-    }
-
-    #[test]
-    fn test_gen_logic_indices() {
-        let csi_contained = "this is \x1B[7mHIGHLIGHT\x1B[m word";
-        let expects: Vec<(usize, bool)> = vec![
-            (0, false), // 't'
-            (1, false), // 'h'
-            (2, false), // 'i'
-            (3, false), // 's'
-            (4, false), // ' '
-            (5, false), // 'i'
-            (6, false), // 's'
-            (7, false), // ' '
-            // skip "\x1B[7m"
-            (12, true), // 'H'
-            (13, true), // 'I'
-            (14, true), // 'G'
-            (15, true), // 'H'
-            (16, true), // 'L'
-            (17, true), // 'I'
-            (18, true), // 'G'
-            (19, true), // 'H'
-            (20, true), // 'T'
-            // skip "\x1B[m"
-            (24, false), // ' '
-            (25, false), // 'w'
-            (26, false), // 'o'
-            (27, false), // 'r'
-            (28, false), // 'd'
-        ];
-        assert_eq!(
-            Pane::gen_logic_indices(&csi_contained),
-            expects
-        );
-
-        let csi_not_contained = "this is normal word";
-        let expects: Vec<(usize, bool)> = vec![
-            (0, false), // 't'
-            (1, false), // 'h'
-            (2, false), // 'i'
-            (3, false), // 's'
-            (4, false), // ' '
-            (5, false), // 'i'
-            (6, false), // 's'
-            (7, false), // ' '
-            (8, false), // 'n'
-            (9, false), // 'o'
-            (10, false), // 'r'
-            (11, false), // 'm'
-            (12, false), // 'a'
-            (13, false), // 'l'
-            (14, false), // ' '
-            (15, false), // 'w'
-            (16, false), // 'o'
-            (17, false), // 'r'
-            (18, false), // 'd'
-        ];
-        assert_eq!(
-            Pane::gen_logic_indices(&csi_not_contained),
-            expects
-        );
-    }
-
-    #[test]
-    fn test_trim() {
-        let raw = "0123456789ABCEDF";
-        assert_eq!(Pane::trim(&raw, 0..10), "0123456789");
-        assert_eq!(Pane::trim(&raw, 4..12), "456789AB");
-        assert_eq!(Pane::trim(&raw, 0..raw.len()), raw);
-        assert_eq!(Pane::trim(&raw, 0..raw.len() + 10), raw);
-        assert_eq!(Pane::trim(&raw, raw.len() + 1..raw.len() + 10), "");
-
-        let empty = "";
-        assert_eq!(Pane::trim(&empty, 0..10), "");
-        assert_eq!(Pane::trim(&empty, 4..12), "");
-
-        let csi_contained = "0123\x1B[7m4567\x1B[m89";
-        assert_eq!(Pane::trim(&csi_contained, 0..10), "0123\x1B[7m4567\x1B[m89");
-        assert_eq!(Pane::trim(&csi_contained, 0..4), "0123");
-        assert_eq!(Pane::trim(&csi_contained, 0..5), "0123\x1B[7m4\x1B[m");
-        assert_eq!(Pane::trim(&csi_contained, 4..8), "\x1B[7m4567\x1B[m");
-        assert_eq!(Pane::trim(&csi_contained, 3..9), "3\x1B[7m4567\x1B[m8");
-        assert_eq!(Pane::trim(&csi_contained, 7..8), "\x1B[7m7\x1B[m");
-        assert_eq!(Pane::trim(&csi_contained, 7..9), "\x1B[7m7\x1B[m8");
-        assert_eq!(Pane::trim(&csi_contained, 8..10), "89");
-
-        let multibyte_str = "it becomes the new default for subse‐";
-        println!("length = {}", multibyte_str.len());
-        assert_eq!(
-            Pane::trim(&multibyte_str, 0..multibyte_str.len()),
-            "it becomes the new default for subse‐"
-        );
     }
 
     #[test]
