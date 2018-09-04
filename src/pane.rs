@@ -231,8 +231,10 @@ impl<'a> Pane<'a> {
                 }
             }
         }
-        ue += 1;
-        while !raw.is_char_boundary(ue) { ue += 1; }
+        if ue < raw.len() {
+            ue += 1;
+            while !raw.is_char_boundary(ue) { ue += 1; }
+        }
         (us, ue)
     }
 
