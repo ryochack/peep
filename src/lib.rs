@@ -4,6 +4,7 @@ extern crate regex;
 extern crate termion;
 extern crate termios;
 extern crate mio;
+extern crate unicode_width;
 
 pub mod app;
 pub mod csi;

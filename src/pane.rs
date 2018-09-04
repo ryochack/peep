@@ -121,6 +121,80 @@ impl<'a> Pane<'a> {
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
     }
 
+    /// Return the range that matches the highlight word.
+    fn hl_match_ranges(&self, raw: &str) -> Vec<(usize, usize)> {
+        let mut v: Vec<(usize, usize)> = vec![];
+        if self.hlsearcher.borrow().as_str().is_empty() {
+            return v;
+        }
+        for m in self.hlsearcher.borrow().find_iter(raw) {
+            v.push((m.start(), m.end()));
+        }
+        v
+    }
+
+    fn hl_words_for_trimed(trimed: &str, trimrange: &(usize, usize), hlranges: &[(usize, usize)]) -> String {
+        let mut hlline = String::new();
+        let mut copied = 0;
+        let offset = trimrange.0;
+        let end = trimrange.1 - offset;
+
+        for &(hl_s, hl_e) in hlranges.iter() {
+            if hl_e < trimrange.0 {
+                continue;
+            }
+            else if hl_s <= trimrange.0 && hl_e >= trimrange.1 {
+                // highlight whole line
+                // _[____]_
+                hlline.push_str(&format!("{}{}{}",
+                                        termion::style::Invert,
+                                        trimed,
+                                        termion::style::Reset));
+                copied = end;
+                break;
+            }
+            else if hl_s <= trimrange.0 && hl_e > trimrange.0 {
+                // _[_   ]
+                hlline.push_str(&format!("{}{}{}",
+                                        termion::style::Invert,
+                                        trimed.get(..hl_e - offset).unwrap(),
+                                        termion::style::Reset));
+                copied = hl_e - offset;
+            }
+            else if hl_s >= trimrange.0 && hl_e <= trimrange.1 {
+                //  [ __ ]
+                hlline.push_str(&format!("{}{}{}{}",
+                                        trimed.get(copied..hl_s - offset).unwrap(),
+                                        termion::style::Invert,
+                                        trimed.get(hl_s - offset..hl_e - offset).unwrap(),
+                                        termion::style::Reset));
+                copied = hl_e - offset;
+            }
+            else if hl_s < trimrange.1 && hl_e >= trimrange.1 {
+                //  [   _]_
+                hlline.push_str(&format!("{}{}{}{}",
+                                        trimed.get(copied..hl_s - offset).unwrap(),
+                                        termion::style::Invert,
+                                        trimed.get(hl_s - offset..).unwrap(),
+                                        termion::style::Reset));
+                copied = end;
+                break;
+            }
+            else if hl_s > trimrange.1 {
+                //  [    ]_
+                hlline.push_str(&format!("{}", trimed.get(copied..).unwrap()));
+                copied = end;
+                break;
+            }
+        }
+
+        if copied < end {
+            hlline.push_str(&format!("{}", trimed.get(copied..).unwrap()));
+        }
+
+        hlline
+    }
+
     /// Highlight line with the highlight word
     fn highlight_words(&self, raw: &str) -> String {
         let mut line = String::new();
@@ -231,6 +305,100 @@ impl<'a> Pane<'a> {
         trimed
     }
 
+    /// get ranges that is considered unicode width
+    fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
+        use unicode_width::UnicodeWidthChar;
+
+        if start >= raw.len() {
+            return (raw.len(), raw.len())
+        }
+
+        let mut search_end = false;
+        let mut width_from_head = 0;
+        let limit_width = end - start;
+        let mut awidth = 0;
+        let mut us = 0;
+        let mut ue = raw.len();
+        for (i, c) in raw.char_indices() {
+            if let Some(n) = c.width_cjk() {
+                if !search_end {
+                    if width_from_head >= start {
+                        us = i;
+                        search_end = true;
+                    }
+                    width_from_head += n;
+                } else {
+                    width_from_head += n;
+                    awidth += n;
+                    if awidth >= limit_width {
+                        // overflow, use previous ue
+                        break;
+                    }
+                    ue = i;
+                    if width_from_head >= end {
+                        break;
+                    }
+                }
+            }
+        }
+        ue += 1;
+        while !raw.is_char_boundary(ue) { ue += 1; }
+        (us, ue)
+    }
+
+    fn decorate2(&self, raw: &str, line_number: u16) -> String {
+        let extend_mark_space: usize = 2;
+
+        // visble raw trimming range
+        let mut raw_range = (
+            self.cur_pos.0 as usize,
+            (self.cur_pos.0 + self.pane_size().unwrap().0) as usize - extend_mark_space
+        );
+
+        // subtract line number space from raw_range
+        if self.show_linenumber {
+            let lnum_space = 4;
+            raw_range.1 = if raw_range.1 - lnum_space > raw_range.0 {
+                raw_range.1 - lnum_space
+            } else {
+                raw_range.0
+            };
+        }
+
+        // get range that considered to unicode width
+        let uc_range = Pane::unicode_range(raw, raw_range.0, raw_range.1);
+
+        // trimed line
+        let trimed = raw.get(uc_range.0..uc_range.1).unwrap();
+
+        // highlight line
+        let hl_ranges = self.hl_match_ranges(raw);
+        let hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+
+        // add line number
+        let lnum = if self.show_linenumber {
+            format!("{:>4}", line_number + 1)
+        } else {
+            String::new()
+        };
+
+        // add extend marks
+        let sol = if uc_range.0 > 0 {
+            format!("{}", ExtendMark('+'))
+        } else {
+            " ".to_owned()
+        };
+
+        // add extend marks
+        let eol = if raw.len() > uc_range.1 {
+            format!("{}", ExtendMark('+'))
+        } else {
+            format!("{}", termion::style::Reset)
+        };
+
+        format!("{}{}{}{}", lnum, sol, hlline, eol)
+    }
+
     // Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let hlline = if self.show_highlight {
@@ -286,7 +454,7 @@ impl<'a> Pane<'a> {
         {
             block.push_str(&format!(
                 "{}\n",
-                self.decorate(&line, (buf_range.start + i) as u16)
+                self.decorate2(&line, (buf_range.start + i) as u16)
             ));
         }
 
