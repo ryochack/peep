@@ -108,15 +108,15 @@ impl<'a> Pane<'a> {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
         for _ in 0..n {
-            s.push_str(&format!("{}", termion::clear::CurrentLine));
-            s.push_str("\n");
+            s.push_str(&format!("{}\n", termion::clear::CurrentLine));
         }
-        s.push_str(&format!("{}", termion::clear::CurrentLine));
         if n > 0 {
-            s.push_str(&format!(
-                "{}",
-                cursor_ext::PreviousLine(n)
-            ));
+            s.push_str(&format!("{}{}",
+                                termion::clear::CurrentLine,
+                                cursor_ext::PreviousLine(n)));
+        } else {
+            // n == 0
+            s.push_str(&format!("{}", termion::clear::CurrentLine));
         }
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
     }
@@ -322,7 +322,12 @@ impl<'a> Pane<'a> {
     }
 
     pub fn quit(&self) {
-        write!(self.writer.borrow_mut(), "{}", termion::clear::CurrentLine).unwrap();
+        write!(
+            self.writer.borrow_mut(),
+            "{}{}",
+            cursor_ext::HorizontalAbsolute(1),
+            termion::clear::CurrentLine
+        ).unwrap();
         self.flush();
     }
 
