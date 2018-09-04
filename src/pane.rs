@@ -240,10 +240,12 @@ impl<'a> Pane<'a> {
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let extend_mark_space: usize = 2;
 
+        let pane_width = self.pane_size().unwrap().0;
+
         // visble raw trimming range
         let mut raw_range = (
             self.cur_pos.0 as usize,
-            (self.cur_pos.0 + self.pane_size().unwrap().0) as usize - extend_mark_space
+            (self.cur_pos.0 + pane_width) as usize - extend_mark_space
         );
 
         // subtract line number space from raw_range
@@ -282,7 +284,7 @@ impl<'a> Pane<'a> {
 
         // add extend marks
         let eol = if raw.len() > uc_range.1 {
-            format!("{}", ExtendMark('+'))
+            format!("{}{}", cursor_ext::HorizontalAbsolute(pane_width), ExtendMark('+'))
         } else {
             format!("{}", termion::style::Reset)
         };
