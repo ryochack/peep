@@ -160,7 +160,7 @@ impl App {
         // Ctrl-C handler
         ctrlc::set_handler(move || {
             // receive SIGINT
-            sig_sender.send(PeepEvent::SigInt).unwrap();
+            sig_sender.send(PeepEvent::Quit).unwrap();
         }).expect("Error setting ctrl-c handler");
 
         self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new("")));
@@ -365,13 +365,7 @@ impl App {
             PeepEvent::Quit => {
                 pane.quit();
             }
-            PeepEvent::SigInt => {
-                // receive SIGINT
-                // ring a bel
-                pane.set_message(Some("\x07"));
-                pane.refresh()?;
-                pane.set_message(None);
-            }
+            PeepEvent::SigInt => {}
             _ => {}
         }
         Ok(())
@@ -426,13 +420,7 @@ impl App {
             PeepEvent::Quit => {
                 pane.quit();
             }
-            PeepEvent::SigInt => {
-                // receive SIGINT
-                // ring a bel
-                pane.set_message(Some("\x07"));
-                pane.refresh()?;
-                pane.set_message(None);
-            }
+            PeepEvent::SigInt => {}
             _ => {}
         }
         Ok(())
