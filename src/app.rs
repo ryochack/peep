@@ -18,6 +18,7 @@ use search;
 use term::{self, Block};
 
 static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (press 'F' to abort)\x1b[0m";
+const DEFAULT_POLL_TIMEOUT_MS: u64 = 200;
 
 pub struct KeyEventHandler<'a> {
     istream: &'a mut Read,
@@ -89,12 +90,13 @@ impl App {
     }
 
     // async read from stdin with timeout
-    fn async_pipe_read(&mut self) -> io::Result<()> {
+    fn async_pipe_read(&mut self, tmo_ms: u64) -> io::Result<()> {
         use mio::{Events, Ready, Poll, PollOpt, Token};
         use mio::unix::EventedFd;
         use std::os::unix::io::AsRawFd;
         use std::time::Duration;
 
+        let mut tmo = tmo_ms;
         let stdin = io::stdin();
 
         let poll = Poll::new()?;
@@ -106,7 +108,8 @@ impl App {
 
         stdin.nonblocking();
         loop {
-            poll.poll(&mut events, Some(Duration::from_millis(200)))?;
+            poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
+            tmo = DEFAULT_POLL_TIMEOUT_MS;
             if events.is_empty() {
                 // time out
                 break;
@@ -124,14 +127,14 @@ impl App {
         Ok(())
     }
 
-    fn read_buffer(&mut self) -> io::Result<()> {
+    fn read_buffer(&mut self, tmo_ms: u64) -> io::Result<()> {
         if self.file_path == "-" {
             // read from stdin if pipe
             if termion::is_tty(&io::stdin()) {
                 // stdin is tty. not pipe.
                 return Err(io::Error::new(io::ErrorKind::NotFound, "Error. No input from stdin"));
             }
-            self.async_pipe_read()?;
+            self.async_pipe_read(tmo_ms)?;
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
@@ -149,7 +152,7 @@ impl App {
 
     pub fn run(&mut self, path: &str) -> io::Result<()> {
         self.file_path = path.to_owned();
-        self.read_buffer()?;
+        self.read_buffer(1000)?;
 
         let writer = io::stdout();
         let writer = writer.lock();
@@ -357,7 +360,7 @@ impl App {
                 // Enter follow mode
                 self.follow_mode = true;
                 // Reload file
-                self.read_buffer()?;
+                self.read_buffer(DEFAULT_POLL_TIMEOUT_MS)?;
                 pane.goto_bottom_of_lines()?;
                 pane.set_message(Some(FOLLOWING_MESSAGE));
                 pane.refresh()?;
@@ -406,7 +409,7 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::FileUpdated => {
-                self.read_buffer()?;
+                self.read_buffer(DEFAULT_POLL_TIMEOUT_MS)?;
                 pane.goto_bottom_of_lines()?;
                 pane.set_message(Some(FOLLOWING_MESSAGE));
                 pane.refresh()?;
