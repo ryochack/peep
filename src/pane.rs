@@ -60,7 +60,6 @@ impl ScrollStep {
 impl<'a> Pane<'a> {
     const MARGIN_RIGHT_WIDTH: u16 = 4;
     const MESSAGE_BAR_HEIGHT: u16 = 1;
-    const LNUM_PRINT_WIDTH: u16 = 4;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
         let mut pane = Pane {
@@ -251,9 +250,10 @@ impl<'a> Pane<'a> {
         );
 
         // subtract line number space from raw_range
+        let lnpw = self.line_number_printing_width();
         if self.show_linenumber {
-            raw_range.1 = if raw_range.1 - Pane::LNUM_PRINT_WIDTH as usize > raw_range.0 {
-                raw_range.1 - Pane::LNUM_PRINT_WIDTH as usize
+            raw_range.1 = if raw_range.1 - lnpw > raw_range.0 {
+                raw_range.1 - lnpw
             } else {
                 raw_range.0
             };
@@ -271,7 +271,13 @@ impl<'a> Pane<'a> {
 
         // add line number
         let lnum = if self.show_linenumber {
-            format!("{:>4}", line_number + 1)
+            // TODO: dirty implementation...
+            match lnpw {
+                0 ... 2 => { format!("{:>2}", line_number + 1) }
+                3 => { format!("{:>3}", line_number + 1) }
+                4 => { format!("{:>4}", line_number + 1) }
+                _ => { format!("{:>5}", line_number + 1) }
+            }
         } else {
             String::new()
         };
@@ -347,6 +353,15 @@ impl<'a> Pane<'a> {
             termion::clear::CurrentLine
         ).unwrap();
         self.flush();
+    }
+
+    fn line_number_printing_width(&self) -> usize {
+        match self.linebuf.borrow().len() {
+            0 ... 99 => 2,
+            100 ... 999 => 3,
+            1000 ... 9999 => 4,
+            _ => 5,
+        }
     }
 
     pub fn show_line_number(&mut self, b: bool) {
@@ -433,7 +448,7 @@ impl<'a> Pane<'a> {
     fn pane_printable_width(&self) -> io::Result<u16> {
         Ok(
             self.pane_size()?.0 - if self.show_linenumber {
-                Pane::LNUM_PRINT_WIDTH
+                self.line_number_printing_width() as u16
             } else {
                 0
             }
