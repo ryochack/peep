@@ -129,7 +129,7 @@ impl App {
             // read from stdin if pipe
             if termion::is_tty(&io::stdin()) {
                 // stdin is tty. not pipe.
-                return Err(io::Error::new(io::ErrorKind::NotFound, "no input"));
+                return Err(io::Error::new(io::ErrorKind::NotFound, "Error. No input from stdin"));
             }
             self.async_pipe_read()?;
         } else if let Ok(mut file) = File::open(&self.file_path) {
@@ -142,7 +142,7 @@ impl App {
                 self.linebuf.borrow_mut().push(v);
             }
         } else {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "not found"));
+            return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error. {} is not found", self.file_path)));
         }
         Ok(())
     }

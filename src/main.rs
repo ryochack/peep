@@ -4,6 +4,7 @@ extern crate termion;
 use getopts::Options;
 use std::env;
 use std::io::{self, Write};
+use std::process;
 
 extern crate peep;
 use peep::app::App;
@@ -22,8 +23,6 @@ fn print_version(prog: &str, version: &str) {
 }
 
 fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
-    use std::process;
-
     let mut opts = Options::new();
     opts.optopt("n", "lines", "set height of pane", "LINES")
         .optflag("N", "print-line-number", "print line numbers")
@@ -58,7 +57,7 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
     } else {
         if termion::is_tty(&io::stdin()) {
             // not find file name and pipe input
-            writeln!(io::stderr(), "Missing filename (\"{} --help\" for help)", prog).unwrap();
+            writeln!(io::stderr(), "Error. Missing filename (\"{} --help\" for help)", prog).unwrap();
             process::exit(0);
         }
         "-".to_owned()
@@ -67,13 +66,18 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
     (app, file_path)
 }
 
-fn main() -> io::Result<()> {
+fn main() {
     let prog = env!("CARGO_PKG_NAME");
     let version = env!("CARGO_PKG_VERSION");
     let args: Vec<String> = env::args().collect();
 
     let (mut app, file_path) = build_app(prog, version, &args[1..]);
 
-    app.run(&file_path)?;
-    Ok(())
+    match app.run(&file_path) {
+        Ok(()) => {}
+        Err(e) => {
+            writeln!(io::stderr(), "{}", e).unwrap();
+            process::exit(1);
+        }
+    }
 }
