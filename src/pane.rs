@@ -8,6 +8,7 @@ use std::io::{self, Write};
 use std::ops;
 use std::rc::Rc;
 use termion;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
 
@@ -57,7 +58,7 @@ impl ScrollStep {
 }
 
 impl<'a> Pane<'a> {
-    const MARGIN_RIGHT_WIDTH: u16 = 2;
+    const MARGIN_RIGHT_WIDTH: u16 = 4;
     const MESSAGE_BAR_HEIGHT: u16 = 1;
     const LNUM_PRINT_WIDTH: u16 = 4;
 
@@ -198,8 +199,6 @@ impl<'a> Pane<'a> {
 
     /// Get ranges that is considered unicode width
     fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
-        use unicode_width::UnicodeWidthChar;
-
         if start >= raw.len() {
             return (raw.len(), raw.len())
         }
@@ -422,6 +421,14 @@ impl<'a> Pane<'a> {
         )
     }
 
+    /// Return max width of linebuf range
+    fn max_width_of_visible_lines(&self, r: ops::Range<usize>) -> u16 {
+        self.linebuf.borrow()[r]
+            .iter()
+            .map(|s| UnicodeWidthStr::width(s.as_str()))
+            .fold(0, cmp::max) as u16
+    }
+
     /// Return the pane printable width
     fn pane_printable_width(&self) -> io::Result<u16> {
         Ok(
@@ -486,11 +493,8 @@ impl<'a> Pane<'a> {
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.pane_printable_width()?);
-        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
-            .iter()
-            .map(|s| s.len())
-            .fold(0, cmp::max) as u16;
-        let x = self.limit_right_x(self.cur_pos.0 + step, max_visible_line_len)?;
+        let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
+        let x = self.limit_right_x(self.cur_pos.0 + step, max_line_width)?;
         let astep = x - self.cur_pos.0;
         self.cur_pos.0 = x;
         Ok(astep)
@@ -515,12 +519,9 @@ impl<'a> Pane<'a> {
 
     /// Go to tail of current line.
     pub fn goto_tail_of_line(&mut self) -> io::Result<(u16, u16)> {
-        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines().unwrap()]
-            .iter()
-            .map(|s| s.len())
-            .fold(0, cmp::max) as u16;
+        let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
         self.cur_pos.0 = self
-            .limit_right_x(max_visible_line_len, max_visible_line_len)
+            .limit_right_x(max_line_width, max_line_width)
             .unwrap();
         Ok(self.cur_pos)
     }
@@ -538,11 +539,8 @@ impl<'a> Pane<'a> {
     }
 
     pub fn goto_absolute_horizontal_offset(&mut self, offset: u16) -> io::Result<u16> {
-        let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
-            .iter()
-            .map(|s| s.len())
-            .fold(0, cmp::max) as u16;
-        self.cur_pos.0 = self.limit_right_x(offset, max_visible_line_len)?;
+        let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
+        self.cur_pos.0 = self.limit_right_x(offset, max_line_width)?;
         Ok(self.cur_pos.0)
     }
 
