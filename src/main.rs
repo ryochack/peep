@@ -15,7 +15,41 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
         p = prog,
         v = version
     );
-    print!("{}", opts.usage(&brief));
+    println!("{}", opts.usage(&brief));
+    println!("Commands on Normal Mode:
+    (num)j         Scroll down
+    (num)k         Scroll up
+    (num)d         Scroll down half page
+    (num)u         Scroll up half page
+    (num)f         Scroll down a page
+    (num)b         Scroll up a page
+    (num)l         Scroll horizontally right
+    (num)h         Scroll horizontally left
+    (num)L         Scroll horizontally right half page
+    (num)H         Scroll horizontally left half page
+    0              Go to the beggining of line
+    $              Go to the end of line
+    g              Got o the beggining of file
+    G              Go to the end of file
+    [num]g [num]G  Go to line [num]
+    /pattern       Search forward in the file for the regex pattern
+    n              Search next
+    N              Search previous
+    q              Quit
+    (num)+         Increment screen height
+    (num)-         Decrement screen height
+    #              Toggle line number printing
+    ESC            Cancel
+    F              Toggle to follow mode
+
+Commands on Following Mode:
+    /pattern       Highlight the regex pattern
+    q              Quit
+    (num)+         Increment screen height
+    (num)-         Decrement screen height
+    #              Toggle line number printing
+    ESC            Cancel
+    F              Toggle to normal mode");
 }
 
 fn print_version(prog: &str, version: &str) {
