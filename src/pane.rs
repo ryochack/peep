@@ -202,7 +202,11 @@ impl<'a> Pane<'a> {
             return (raw.len(), raw.len())
         }
 
-        let mut search_end = false;
+        let mut found_start = if start == 0 {
+            true
+        } else {
+            false
+        };
         let mut width_from_head = 0;
         let limit_width = end - start;
         let mut awidth = 0;
@@ -210,10 +214,10 @@ impl<'a> Pane<'a> {
         let mut ue = raw.len();
         for (i, c) in raw.char_indices() {
             if let Some(n) = c.width_cjk() {
-                if !search_end {
+                if !found_start {
                     if width_from_head >= start {
                         us = i;
-                        search_end = true;
+                        found_start = true;
                     }
                     width_from_head += n;
                 } else {
