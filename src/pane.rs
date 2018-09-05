@@ -59,6 +59,7 @@ impl ScrollStep {
 impl<'a> Pane<'a> {
     const MARGIN_RIGHT_WIDTH: u16 = 2;
     const MESSAGE_BAR_HEIGHT: u16 = 1;
+    const LNUM_PRINT_WIDTH: u16 = 4;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
         let mut pane = Pane {
@@ -252,9 +253,8 @@ impl<'a> Pane<'a> {
 
         // subtract line number space from raw_range
         if self.show_linenumber {
-            let lnum_space = 4;
-            raw_range.1 = if raw_range.1 - lnum_space > raw_range.0 {
-                raw_range.1 - lnum_space
+            raw_range.1 = if raw_range.1 - Pane::LNUM_PRINT_WIDTH as usize > raw_range.0 {
+                raw_range.1 - Pane::LNUM_PRINT_WIDTH as usize
             } else {
                 raw_range.0
             };
@@ -422,11 +422,21 @@ impl<'a> Pane<'a> {
         )
     }
 
+    /// Return the pane printable width
+    fn pane_printable_width(&self) -> io::Result<u16> {
+        Ok(
+            self.pane_size()?.0 - if self.show_linenumber {
+                Pane::LNUM_PRINT_WIDTH
+            } else {
+                0
+            }
+        )
+    }
+
     /// Return the horizontal offset that is considered pane size and string length
     fn limit_right_x(&self, next_x: u16, max_len: u16) -> io::Result<u16> {
         let margined_len = max_len + Pane::MARGIN_RIGHT_WIDTH;
-        let pane_width = self.pane_size()?.0;
-
+        let pane_width = self.pane_printable_width()?;
         Ok(if pane_width >= margined_len {
             0
         } else if next_x + pane_width <= margined_len {
@@ -463,7 +473,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_left(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.pane_size()?.0);
+        let step = ss.to_numof_chars(self.pane_printable_width()?);
         let astep = if self.cur_pos.0 > step {
             step
         } else {
@@ -475,16 +485,12 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.pane_size()?.0);
+        let step = ss.to_numof_chars(self.pane_printable_width()?);
         let max_visible_line_len = self.linebuf.borrow()[self.range_of_visible_lines()?]
             .iter()
             .map(|s| s.len())
             .fold(0, cmp::max) as u16;
         let x = self.limit_right_x(self.cur_pos.0 + step, max_visible_line_len)?;
-        assert!(
-            x >= self.cur_pos.0,
-            format!("{} > {} is not pass!", x, self.cur_pos.0)
-        );
         let astep = x - self.cur_pos.0;
         self.cur_pos.0 = x;
         Ok(astep)
