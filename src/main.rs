@@ -56,7 +56,11 @@ fn print_version(prog: &str, version: &str) {
     println!("{} {}", prog, version);
 }
 
-fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
+fn run() -> io::Result<()> {
+    let prog = env!("CARGO_PKG_NAME");
+    let version = env!("CARGO_PKG_VERSION");
+    let args: Vec<String> = env::args().skip(1).collect();
+
     let mut opts = Options::new();
     opts.optopt("n", "lines", "set height of pane", "LINES")
         .optflag("N", "print-line-number", "print line numbers")
@@ -64,23 +68,28 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
         .optflag("h", "help", "show this usage")
         .optflag("v", "version", "show version");
 
-    let matches = match opts.parse(args) {
-        Ok(m) => m,
-        Err(e) => {
-            writeln!(io::stderr(), "Error. {}", e).unwrap();
-            process::exit(1);
-        },
-    };
+    let matches = opts.parse(args)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
 
     if matches.opt_present("h") {
         print_usage(prog, version, &opts);
-        process::exit(0);
+        return Ok(());
     }
 
     if matches.opt_present("v") {
         print_version(prog, version);
-        process::exit(0);
+        return Ok(());
     }
+
+    let file_path = if !matches.free.is_empty() {
+        matches.free[0].clone()
+    } else {
+        if termion::is_tty(&io::stdin()) {
+            // not find file name and pipe input
+            return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error. Missing filename (\"{} --help\" for help)", prog)));
+        }
+        "-".to_owned()
+    };
 
     let mut app: App = Default::default();
     app.show_linenumber = matches.opt_present("N");
@@ -89,32 +98,12 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
         app.nlines = nlines;
     }
 
-    let file_path = if !matches.free.is_empty() {
-        matches.free[0].clone()
-    } else {
-        if termion::is_tty(&io::stdin()) {
-            // not find file name and pipe input
-            writeln!(io::stderr(), "Error. Missing filename (\"{} --help\" for help)", prog).unwrap();
-            process::exit(0);
-        }
-        "-".to_owned()
-    };
-
-    (app, file_path)
+    app.run(&file_path)
 }
 
 fn main() {
-    let prog = env!("CARGO_PKG_NAME");
-    let version = env!("CARGO_PKG_VERSION");
-    let args: Vec<String> = env::args().collect();
-
-    let (mut app, file_path) = build_app(prog, version, &args[1..]);
-
-    match app.run(&file_path) {
-        Ok(()) => {}
-        Err(e) => {
-            writeln!(io::stderr(), "{}", e).unwrap();
-            process::exit(1);
-        }
+    if let Err(e) = run() {
+        writeln!(io::stderr(), "{}", e).unwrap();
+        process::exit(1);
     }
 }
