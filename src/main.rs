@@ -29,7 +29,7 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     (num)H         Scroll horizontally left half page
     0              Go to the beggining of line
     $              Go to the end of line
-    g              Got o the beggining of file
+    g              Go to the beggining of file
     G              Go to the end of file
     [num]g [num]G  Go to line [num]
     /pattern       Search forward in the file for the regex pattern
