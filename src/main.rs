@@ -66,7 +66,10 @@ fn build_app(prog: &str, version: &str, args: &[String]) -> (App, String) {
 
     let matches = match opts.parse(args) {
         Ok(m) => m,
-        Err(f) => panic!(f.to_string()),
+        Err(e) => {
+            writeln!(io::stderr(), "Error. {}", e).unwrap();
+            process::exit(1);
+        },
     };
 
     if matches.opt_present("h") {
