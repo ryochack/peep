@@ -70,6 +70,7 @@ pub mod default {
                 ("#", PeepEvent::ToggleLineNumberPrinting),
                 ("-", PeepEvent::DecrementLines(1)),
                 ("+", PeepEvent::IncrementLines(1)),
+                ("=", PeepEvent::SetNumOfLines(0)),
                 ("n", PeepEvent::SearchNext),
                 ("N", PeepEvent::SearchPrev),
                 ("q", PeepEvent::Quit),
@@ -176,7 +177,7 @@ pub mod default {
                     match self.cmap.get::<str>(&self.wip_keys) {
                         Some(v) => {
                             needs_trans = true;
-                            Some(self.combine_command(v.to_owned()))
+                            self.combine_command(v.to_owned())
                         }
                         None => {
                             if self.cmap.keys().any(|&k| k.starts_with(&self.wip_keys)) {
@@ -201,39 +202,45 @@ pub mod default {
             op
         }
 
-        fn combine_command(&self, op: PeepEvent) -> PeepEvent {
+        fn combine_command(&self, op: PeepEvent) -> Option<PeepEvent> {
             let valid_num = |n| if n == 0 { 1 } else { n };
             match op {
-                PeepEvent::MoveDown(_) => PeepEvent::MoveDown(valid_num(self.number)),
-                PeepEvent::MoveUp(_) => PeepEvent::MoveUp(valid_num(self.number)),
-                PeepEvent::MoveLeft(_) => PeepEvent::MoveLeft(valid_num(self.number)),
-                PeepEvent::MoveRight(_) => PeepEvent::MoveRight(valid_num(self.number)),
+                PeepEvent::MoveDown(_) => Some(PeepEvent::MoveDown(valid_num(self.number))),
+                PeepEvent::MoveUp(_) => Some(PeepEvent::MoveUp(valid_num(self.number))),
+                PeepEvent::MoveLeft(_) => Some(PeepEvent::MoveLeft(valid_num(self.number))),
+                PeepEvent::MoveRight(_) => Some(PeepEvent::MoveRight(valid_num(self.number))),
                 PeepEvent::MoveDownHalfPages(_) => {
-                    PeepEvent::MoveDownHalfPages(valid_num(self.number))
+                    Some(PeepEvent::MoveDownHalfPages(valid_num(self.number)))
                 }
-                PeepEvent::MoveUpHalfPages(_) => PeepEvent::MoveUpHalfPages(valid_num(self.number)),
+                PeepEvent::MoveUpHalfPages(_) => Some(PeepEvent::MoveUpHalfPages(valid_num(self.number))),
                 PeepEvent::MoveLeftHalfPages(_) => {
-                    PeepEvent::MoveLeftHalfPages(valid_num(self.number))
+                    Some(PeepEvent::MoveLeftHalfPages(valid_num(self.number)))
                 }
                 PeepEvent::MoveRightHalfPages(_) => {
-                    PeepEvent::MoveRightHalfPages(valid_num(self.number))
+                    Some(PeepEvent::MoveRightHalfPages(valid_num(self.number)))
                 }
-                PeepEvent::MoveDownPages(_) => PeepEvent::MoveDownPages(valid_num(self.number)),
-                PeepEvent::MoveUpPages(_) => PeepEvent::MoveUpPages(valid_num(self.number)),
+                PeepEvent::MoveDownPages(_) => Some(PeepEvent::MoveDownPages(valid_num(self.number))),
+                PeepEvent::MoveUpPages(_) => Some(PeepEvent::MoveUpPages(valid_num(self.number))),
                 PeepEvent::MoveToTopOfLines | PeepEvent::MoveToBottomOfLines => {
                     if self.number == 0 {
-                        op
+                        Some(op)
                     } else {
-                        PeepEvent::MoveToLineNumber(self.number - 1)
+                        Some(PeepEvent::MoveToLineNumber(self.number - 1))
                     }
                 }
                 PeepEvent::MoveToLineNumber(_) => {
-                    PeepEvent::MoveToLineNumber(valid_num(self.number))
+                    Some(PeepEvent::MoveToLineNumber(valid_num(self.number)))
                 }
-                PeepEvent::IncrementLines(_) => PeepEvent::IncrementLines(valid_num(self.number)),
-                PeepEvent::DecrementLines(_) => PeepEvent::DecrementLines(valid_num(self.number)),
-                PeepEvent::SetNumOfLines(_) => PeepEvent::SetNumOfLines(valid_num(self.number)),
-                _ => op,
+                PeepEvent::IncrementLines(_) => Some(PeepEvent::IncrementLines(valid_num(self.number))),
+                PeepEvent::DecrementLines(_) => Some(PeepEvent::DecrementLines(valid_num(self.number))),
+                PeepEvent::SetNumOfLines(_) => {
+                    if self.number == 0 {
+                        None
+                    } else {
+                        Some(PeepEvent::SetNumOfLines(self.number))
+                    }
+                }
+                _ => Some(op),
             }
         }
 
@@ -278,6 +285,7 @@ mod tests {
         assert_eq!(kb.parse('G'), Some(PeepEvent::MoveToBottomOfLines));
         assert_eq!(kb.parse('-'), Some(PeepEvent::DecrementLines(1)));
         assert_eq!(kb.parse('+'), Some(PeepEvent::IncrementLines(1)));
+        assert_eq!(kb.parse('='), None);
         assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
         assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
         assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
@@ -305,6 +313,10 @@ mod tests {
         assert_eq!(kb.parse('1'), None);
         assert_eq!(kb.parse('0'), None);
         assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(10)));
+
+        assert_eq!(kb.parse('1'), None);
+        assert_eq!(kb.parse('0'), None);
+        assert_eq!(kb.parse('='), Some(PeepEvent::SetNumOfLines(10)));
     }
 
     #[test]
