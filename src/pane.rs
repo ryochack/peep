@@ -198,15 +198,11 @@ impl<'a> Pane<'a> {
 
     /// Get ranges that is considered unicode width
     fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
-        if start >= raw.len() {
+        if start >= UnicodeWidthStr::width(raw) {
             return (raw.len(), raw.len())
         }
 
-        let mut found_start = if start == 0 {
-            true
-        } else {
-            false
-        };
+        let mut found_start = start == 0;
         let mut width_from_head = 0;
         let limit_width = end - start;
         let mut awidth = 0;
@@ -215,28 +211,22 @@ impl<'a> Pane<'a> {
         for (i, c) in raw.char_indices() {
             if let Some(n) = c.width_cjk() {
                 if !found_start {
+                    // decide us
                     if width_from_head >= start {
                         us = i;
                         found_start = true;
                     }
                     width_from_head += n;
-                } else {
-                    width_from_head += n;
-                    awidth += n;
+                }
+                if found_start {
+                    // decide ue
                     if awidth >= limit_width {
-                        // overflow, use previous ue
+                        ue = i;
                         break;
                     }
-                    ue = i;
-                    if width_from_head >= end {
-                        break;
-                    }
+                    awidth += n;
                 }
             }
-        }
-        if ue < raw.len() {
-            ue += 1;
-            while !raw.is_char_boundary(ue) { ue += 1; }
         }
         (us, ue)
     }
@@ -1035,5 +1025,32 @@ mod tests {
             // remain 10
             max_text_length - size.0 + Pane::MARGIN_RIGHT_WIDTH
         );
+    }
+
+    #[test]
+    fn test_uncode_range() {
+        let ustr = "0123456789１２３４５６７８９０0123456789";
+        //          0123456789012345678901234567890123456789
+        //  0-10:10 |--------| 10
+        //  1- 5: 4  |--| 4
+        //  8-13: 5         |--| 4
+        // 10-20:10           |--------| 10
+        let r = Pane::unicode_range(ustr, 0, 10);
+        assert_eq!(&ustr[r.0..r.1], "0123456789");
+
+        let r = Pane::unicode_range(ustr, 1, 5);
+        assert_eq!(&ustr[r.0..r.1], "1234");
+
+        let r = Pane::unicode_range(ustr, 8, 12);
+        assert_eq!(&ustr[r.0..r.1], "89１");
+
+        let r = Pane::unicode_range(ustr, 10, 20);
+        assert_eq!(&ustr[r.0..r.1], "１２３４５");
+
+        let r = Pane::unicode_range(ustr, 15, 15);
+        assert_eq!(&ustr[r.0..r.1], "");
+
+        let r = Pane::unicode_range(ustr, 23, 35);
+        assert_eq!(&ustr[r.0..r.1], "８９０012345");
     }
 }
