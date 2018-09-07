@@ -38,6 +38,7 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     q              Quit
     (num)+         Increment screen height
     (num)-         Decrement screen height
+    [num]=         Set screen height to [num]
     #              Toggle line number printing
     ESC            Cancel
     F              Toggle to follow mode
@@ -47,6 +48,7 @@ Commands on Following Mode:
     q              Quit
     (num)+         Increment screen height
     (num)-         Decrement screen height
+    [num]=         Set screen height to [num]
     #              Toggle line number printing
     ESC            Cancel
     F              Toggle to normal mode");
