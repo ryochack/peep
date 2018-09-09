@@ -104,9 +104,9 @@ impl PipeReader {
                 break;
             }
 
-            let mut stdin = stdin.lock();
+            let mut stdinlock = stdin.lock();
 
-            while let Ok(cap) = stdin.read(&mut buf) {
+            while let Ok(cap) = stdinlock.read(&mut buf) {
                 if cap == 0 {
                     break;
                 }
@@ -261,7 +261,8 @@ impl App {
         });
 
         // spawn inotifier thread for following mode
-        filewatch::inotifier(&self.file_path, event_sender);
+        let file_path_to_watch = self.file_path.clone();
+        let _fwthread = spawn(move || filewatch::file_watcher(&file_path_to_watch, event_sender));
 
         // app loop
         loop {
