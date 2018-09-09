@@ -60,9 +60,9 @@ impl PipeReader {
 
     /// chomp end of CRFL. Return whethre it was chomped or not.
     pub fn chomp(s: &mut String) -> bool {
-        if s.ends_with("\n") {
+        if s.ends_with('\n') {
             s.pop();
-            if s.ends_with("\r") {
+            if s.ends_with('\r') {
                 s.pop();
             }
             true
@@ -510,7 +510,7 @@ impl App {
     fn search_rev(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
         let searcher = self.searcher.borrow();
         let ref_linebuf = self.linebuf.borrow();
-        for (i, line) in ref_linebuf[0..(pos.1 as usize) + 1]
+        for (i, line) in ref_linebuf[0..=(pos.1 as usize)]
             .iter()
             .rev()
             .enumerate()

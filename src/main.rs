@@ -3,7 +3,7 @@ extern crate termion;
 
 use getopts::Options;
 use std::env;
-use std::io::{self, Write};
+use std::io;
 use std::process;
 
 extern crate peep;
@@ -111,7 +111,7 @@ fn run() -> io::Result<()> {
 
 fn main() {
     if let Err(e) = run() {
-        writeln!(io::stderr(), "{}", e).unwrap();
+        eprintln!("{}", e);
         process::exit(1);
     }
 }

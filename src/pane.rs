@@ -193,14 +193,14 @@ impl<'a> Pane<'a> {
                 break;
             } else if hl_s > trimrange.1 {
                 //  [    ]_
-                hlline.push_str(&format!("{}", trimed.get(copied..).unwrap()));
+                hlline.push_str(&trimed.get(copied..).unwrap().to_owned());
                 copied = end;
                 break;
             }
         }
 
         if copied < end {
-            hlline.push_str(&format!("{}", trimed.get(copied..).unwrap()));
+            hlline.push_str(&trimed.get(copied..).unwrap().to_owned());
         }
 
         hlline
