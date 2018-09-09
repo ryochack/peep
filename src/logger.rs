@@ -7,7 +7,7 @@ pub fn log(msg: &str) {
     let mut w = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(LOG_PATH).unwrap();
+        .open(LOG_PATH)
+        .unwrap();
     let _ = writeln!(&mut w, "{}", msg);
 }
-

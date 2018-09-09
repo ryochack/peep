@@ -16,7 +16,8 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
         v = version
     );
     println!("{}", opts.usage(&brief));
-    println!("Commands on Normal Mode:
+    println!(
+        "Commands on Normal Mode:
     (num)j         Scroll down
     (num)k         Scroll up
     (num)d         Scroll down half page
@@ -51,7 +52,8 @@ Commands on Following Mode:
     [num]=         Set screen height to [num]
     #              Toggle line number printing
     ESC            Cancel
-    F              Toggle to normal mode");
+    F              Toggle to normal mode"
+    );
 }
 
 fn print_version(prog: &str, version: &str) {
@@ -70,7 +72,8 @@ fn run() -> io::Result<()> {
         .optflag("h", "help", "show this usage")
         .optflag("v", "version", "show version");
 
-    let matches = opts.parse(args)
+    let matches = opts
+        .parse(args)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
 
     if matches.opt_present("h") {
@@ -88,7 +91,10 @@ fn run() -> io::Result<()> {
     } else {
         if termion::is_tty(&io::stdin()) {
             // not find file name and pipe input
-            return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error. Missing filename (\"{} --help\" for help)", prog)));
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Error. Missing filename (\"{} --help\" for help)", prog),
+            ));
         }
         "-".to_owned()
     };

@@ -80,7 +80,8 @@ impl<'a> Pane<'a> {
         };
 
         // limit pane height if terminal height is less than pane height.
-        pane.set_height(DEFAULT_PANE_HEIGHT).expect("terminal_size get error");
+        pane.set_height(DEFAULT_PANE_HEIGHT)
+            .expect("terminal_size get error");
         pane.numof_flushed_lines = pane.height;
 
         pane.sweep(pane.height);
@@ -112,9 +113,11 @@ impl<'a> Pane<'a> {
             s.push_str(&format!("{}\n", termion::clear::CurrentLine));
         }
         if n > 0 {
-            s.push_str(&format!("{}{}",
-                                termion::clear::CurrentLine,
-                                cursor_ext::PreviousLine(n)));
+            s.push_str(&format!(
+                "{}{}",
+                termion::clear::CurrentLine,
+                cursor_ext::PreviousLine(n)
+            ));
         } else {
             // n == 0
             s.push_str(&format!("{}", termion::clear::CurrentLine));
@@ -134,7 +137,11 @@ impl<'a> Pane<'a> {
         v
     }
 
-    fn hl_words_for_trimed(trimed: &str, trimrange: &(usize, usize), hlranges: &[(usize, usize)]) -> String {
+    fn hl_words_for_trimed(
+        trimed: &str,
+        trimrange: &(usize, usize),
+        hlranges: &[(usize, usize)],
+    ) -> String {
         let mut hlline = String::new();
         let mut copied = 0;
         let offset = trimrange.0;
@@ -143,45 +150,48 @@ impl<'a> Pane<'a> {
         for &(hl_s, hl_e) in hlranges.iter() {
             if hl_e < trimrange.0 {
                 continue;
-            }
-            else if hl_s <= trimrange.0 && hl_e >= trimrange.1 {
+            } else if hl_s <= trimrange.0 && hl_e >= trimrange.1 {
                 // highlight whole line
                 // _[____]_
-                hlline.push_str(&format!("{}{}{}",
-                                        termion::style::Invert,
-                                        trimed,
-                                        termion::style::Reset));
+                hlline.push_str(&format!(
+                    "{}{}{}",
+                    termion::style::Invert,
+                    trimed,
+                    termion::style::Reset
+                ));
                 copied = end;
                 break;
-            }
-            else if hl_s <= trimrange.0 && hl_e > trimrange.0 {
+            } else if hl_s <= trimrange.0 && hl_e > trimrange.0 {
                 // _[_   ]
-                hlline.push_str(&format!("{}{}{}",
-                                        termion::style::Invert,
-                                        trimed.get(..hl_e - offset).unwrap(),
-                                        termion::style::Reset));
+                hlline.push_str(&format!(
+                    "{}{}{}",
+                    termion::style::Invert,
+                    trimed.get(..hl_e - offset).unwrap(),
+                    termion::style::Reset
+                ));
                 copied = hl_e - offset;
-            }
-            else if hl_s >= trimrange.0 && hl_e <= trimrange.1 {
+            } else if hl_s >= trimrange.0 && hl_e <= trimrange.1 {
                 //  [ __ ]
-                hlline.push_str(&format!("{}{}{}{}",
-                                        trimed.get(copied..hl_s - offset).unwrap(),
-                                        termion::style::Invert,
-                                        trimed.get(hl_s - offset..hl_e - offset).unwrap(),
-                                        termion::style::Reset));
+                hlline.push_str(&format!(
+                    "{}{}{}{}",
+                    trimed.get(copied..hl_s - offset).unwrap(),
+                    termion::style::Invert,
+                    trimed.get(hl_s - offset..hl_e - offset).unwrap(),
+                    termion::style::Reset
+                ));
                 copied = hl_e - offset;
-            }
-            else if hl_s < trimrange.1 && hl_e >= trimrange.1 {
+            } else if hl_s < trimrange.1 && hl_e >= trimrange.1 {
                 //  [   _]_
-                hlline.push_str(&format!("{}{}{}{}",
-                                        trimed.get(copied..hl_s - offset).unwrap(),
-                                        termion::style::Invert,
-                                        trimed.get(hl_s - offset..).unwrap(),
-                                        termion::style::Reset));
+                hlline.push_str(&format!(
+                    "{}{}{}{}",
+                    trimed.get(copied..hl_s - offset).unwrap(),
+                    termion::style::Invert,
+                    trimed.get(hl_s - offset..).unwrap(),
+                    termion::style::Reset
+                ));
                 copied = end;
                 break;
-            }
-            else if hl_s > trimrange.1 {
+            } else if hl_s > trimrange.1 {
                 //  [    ]_
                 hlline.push_str(&format!("{}", trimed.get(copied..).unwrap()));
                 copied = end;
@@ -199,7 +209,7 @@ impl<'a> Pane<'a> {
     /// Get ranges that is considered unicode width
     fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
         if start >= UnicodeWidthStr::width(raw) {
-            return (raw.len(), raw.len())
+            return (raw.len(), raw.len());
         }
 
         let mut found_start = start == 0;
@@ -240,7 +250,7 @@ impl<'a> Pane<'a> {
         // visble raw trimming range
         let mut raw_range = (
             self.cur_pos.0 as usize,
-            (self.cur_pos.0 + pane_width) as usize - extend_mark_space
+            (self.cur_pos.0 + pane_width) as usize - extend_mark_space,
         );
 
         // subtract line number space from raw_range
@@ -267,10 +277,10 @@ impl<'a> Pane<'a> {
         let lnum = if self.show_linenumber {
             // TODO: dirty implementation...
             match lnpw {
-                0 ... 2 => { format!("{:>2}", line_number + 1) }
-                3 => { format!("{:>3}", line_number + 1) }
-                4 => { format!("{:>4}", line_number + 1) }
-                _ => { format!("{:>5}", line_number + 1) }
+                0...2 => format!("{:>2}", line_number + 1),
+                3 => format!("{:>3}", line_number + 1),
+                4 => format!("{:>4}", line_number + 1),
+                _ => format!("{:>5}", line_number + 1),
             }
         } else {
             String::new()
@@ -285,7 +295,11 @@ impl<'a> Pane<'a> {
 
         // add extend marks
         let eol = if raw.len() > uc_range.1 {
-            format!("{}{}", cursor_ext::HorizontalAbsolute(pane_width), ExtendMark('+'))
+            format!(
+                "{}{}",
+                cursor_ext::HorizontalAbsolute(pane_width),
+                ExtendMark('+')
+            )
         } else {
             format!("{}", termion::style::Reset)
         };
@@ -312,8 +326,8 @@ impl<'a> Pane<'a> {
         let numof_lines_to_message_bar = pane_height - buf_range.len() as u16;
         if numof_lines_to_message_bar > 0 {
             block.push_str(&format!(
-                    "{}",
-                    cursor_ext::NextLine(numof_lines_to_message_bar)
+                "{}",
+                cursor_ext::NextLine(numof_lines_to_message_bar)
             ));
         }
 
@@ -351,9 +365,9 @@ impl<'a> Pane<'a> {
 
     fn line_number_printing_width(&self) -> usize {
         match self.linebuf.borrow().len() {
-            0 ... 99 => 2,
-            100 ... 999 => 3,
-            1000 ... 9999 => 4,
+            0...99 => 2,
+            100...999 => 3,
+            1000...9999 => 4,
             _ => 5,
         }
     }
@@ -421,13 +435,11 @@ impl<'a> Pane<'a> {
         let buf_height = self.linebuf.borrow().len();
         let y = self.cur_pos.1 as usize;
 
-        Ok(y..
-           if (buf_height - y) < pane_height {
-               buf_height
-           } else {
-               y + pane_height
-           }
-        )
+        Ok(y..if (buf_height - y) < pane_height {
+            buf_height
+        } else {
+            y + pane_height
+        })
     }
 
     /// Return max width of linebuf range
@@ -440,13 +452,11 @@ impl<'a> Pane<'a> {
 
     /// Return the pane printable width
     fn pane_printable_width(&self) -> io::Result<u16> {
-        Ok(
-            self.pane_size()?.0 - if self.show_linenumber {
-                self.line_number_printing_width() as u16
-            } else {
-                0
-            }
-        )
+        Ok(self.pane_size()?.0 - if self.show_linenumber {
+            self.line_number_printing_width() as u16
+        } else {
+            0
+        })
     }
 
     /// Return the horizontal offset that is considered pane size and string length
@@ -529,9 +539,7 @@ impl<'a> Pane<'a> {
     /// Go to tail of current line.
     pub fn goto_tail_of_line(&mut self) -> io::Result<(u16, u16)> {
         let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
-        self.cur_pos.0 = self
-            .limit_right_x(max_line_width, max_line_width)
-            .unwrap();
+        self.cur_pos.0 = self.limit_right_x(max_line_width, max_line_width).unwrap();
         Ok(self.cur_pos)
     }
 
@@ -590,12 +598,10 @@ mod tests {
     use std::io::BufWriter;
 
     macro_rules! gen_pane {
-        ($w:expr) => {
-            {
-                let _w = BufWriter::new($w);
-                Pane::new(Box::new(RefCell::new(_w)))
-            }
-        }
+        ($w:expr) => {{
+            let _w = BufWriter::new($w);
+            Pane::new(Box::new(RefCell::new(_w)))
+        }};
     }
 
     fn gen_texts(s: &[&str]) -> Rc<RefCell<Vec<String>>> {
@@ -613,8 +619,7 @@ mod tests {
     #[test]
     fn test_scroll_up_down() {
         let t = [
-            "", "", "", "", "", "", "", "", "", "",
-            "", "", "", "", "", "", "", "", "", "",
+            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
         let (_, sizer) = gen_sizer(2, 5);
@@ -624,7 +629,7 @@ mod tests {
         let pane_height = 4;
         let _ = pane.set_height(pane_height);
 
-        let stride_page  = pane_height;
+        let stride_page = pane_height;
         let stride_hpage = pane_height / 2;
 
         // in range
@@ -638,20 +643,38 @@ mod tests {
             assert_eq!(pane.scroll_up(&ScrollStep::Char(2)).unwrap(), 2);
             assert_eq!(pane.position(), (0, 0));
 
-            assert_eq!(pane.scroll_down(&ScrollStep::HalfPage(1)).unwrap(), stride_hpage);
-            assert_eq!(pane.scroll_down(&ScrollStep::HalfPage(2)).unwrap(), stride_hpage * 2);
+            assert_eq!(
+                pane.scroll_down(&ScrollStep::HalfPage(1)).unwrap(),
+                stride_hpage
+            );
+            assert_eq!(
+                pane.scroll_down(&ScrollStep::HalfPage(2)).unwrap(),
+                stride_hpage * 2
+            );
             assert_eq!(pane.position(), (0, stride_hpage * 3));
 
-            assert_eq!(pane.scroll_up(&ScrollStep::HalfPage(1)).unwrap(), stride_hpage);
-            assert_eq!(pane.scroll_up(&ScrollStep::HalfPage(2)).unwrap(), stride_hpage * 2);
+            assert_eq!(
+                pane.scroll_up(&ScrollStep::HalfPage(1)).unwrap(),
+                stride_hpage
+            );
+            assert_eq!(
+                pane.scroll_up(&ScrollStep::HalfPage(2)).unwrap(),
+                stride_hpage * 2
+            );
             assert_eq!(pane.position(), (0, 0));
 
             assert_eq!(pane.scroll_down(&ScrollStep::Page(1)).unwrap(), stride_page);
-            assert_eq!(pane.scroll_down(&ScrollStep::Page(2)).unwrap(), stride_page * 2);
+            assert_eq!(
+                pane.scroll_down(&ScrollStep::Page(2)).unwrap(),
+                stride_page * 2
+            );
             assert_eq!(pane.position(), (0, stride_page * 3));
 
             assert_eq!(pane.scroll_up(&ScrollStep::Page(1)).unwrap(), stride_page);
-            assert_eq!(pane.scroll_up(&ScrollStep::Page(2)).unwrap(), stride_page * 2);
+            assert_eq!(
+                pane.scroll_up(&ScrollStep::Page(2)).unwrap(),
+                stride_page * 2
+            );
             assert_eq!(pane.position(), (0, 0));
         }
 
@@ -676,16 +699,14 @@ mod tests {
 
     #[test]
     fn test_scroll_left_right() {
-        let t = [
-            "1234567890123456789012345678901234567890"
-        ];
+        let t = ["1234567890123456789012345678901234567890"];
         let texts = gen_texts(&t);
         let (size, sizer) = gen_sizer(4, 2);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
         pane.replace_termsize_getter(sizer);
 
-        let stride_page  = size.0;
+        let stride_page = size.0;
         let stride_hpage = size.0 / 2;
 
         // in range
@@ -699,20 +720,41 @@ mod tests {
             assert_eq!(pane.scroll_left(&ScrollStep::Char(2)).unwrap(), 2);
             assert_eq!(pane.position(), (0, 0));
 
-            assert_eq!(pane.scroll_right(&ScrollStep::HalfPage(1)).unwrap(), stride_hpage);
-            assert_eq!(pane.scroll_right(&ScrollStep::HalfPage(2)).unwrap(), stride_hpage * 2);
+            assert_eq!(
+                pane.scroll_right(&ScrollStep::HalfPage(1)).unwrap(),
+                stride_hpage
+            );
+            assert_eq!(
+                pane.scroll_right(&ScrollStep::HalfPage(2)).unwrap(),
+                stride_hpage * 2
+            );
             assert_eq!(pane.position(), (stride_hpage * 3, 0));
 
-            assert_eq!(pane.scroll_left(&ScrollStep::HalfPage(1)).unwrap(), stride_hpage);
-            assert_eq!(pane.scroll_left(&ScrollStep::HalfPage(2)).unwrap(), stride_hpage * 2);
+            assert_eq!(
+                pane.scroll_left(&ScrollStep::HalfPage(1)).unwrap(),
+                stride_hpage
+            );
+            assert_eq!(
+                pane.scroll_left(&ScrollStep::HalfPage(2)).unwrap(),
+                stride_hpage * 2
+            );
             assert_eq!(pane.position(), (0, 0));
 
-            assert_eq!(pane.scroll_right(&ScrollStep::Page(1)).unwrap(), stride_page);
-            assert_eq!(pane.scroll_right(&ScrollStep::Page(2)).unwrap(), stride_page * 2);
+            assert_eq!(
+                pane.scroll_right(&ScrollStep::Page(1)).unwrap(),
+                stride_page
+            );
+            assert_eq!(
+                pane.scroll_right(&ScrollStep::Page(2)).unwrap(),
+                stride_page * 2
+            );
             assert_eq!(pane.position(), (stride_page * 3, 0));
 
             assert_eq!(pane.scroll_left(&ScrollStep::Page(1)).unwrap(), stride_page);
-            assert_eq!(pane.scroll_left(&ScrollStep::Page(2)).unwrap(), stride_page * 2);
+            assert_eq!(
+                pane.scroll_left(&ScrollStep::Page(2)).unwrap(),
+                stride_page * 2
+            );
             assert_eq!(pane.position(), (0, 0));
         }
 
@@ -725,36 +767,29 @@ mod tests {
             );
             assert_eq!(
                 pane.position(),
-                (texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH, 0)
+                (
+                    texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH,
+                    0
+                )
             );
 
             let (w, _) = pane.position();
-            assert_eq!(
-                pane.scroll_left(&ScrollStep::Page(10)).unwrap(),
-                w,
-            );
+            assert_eq!(pane.scroll_left(&ScrollStep::Page(10)).unwrap(), w,);
             assert_eq!(pane.position(), (0, 0));
         }
 
-        let t = [
-            "1234567890123456789012345678901234567890",
-            ""
-        ];
+        let t = ["1234567890123456789012345678901234567890", ""];
         let texts = gen_texts(&t);
         pane.load(texts.clone());
         assert_eq!(pane.goto_absolute_line(1).unwrap(), 1);
         // now, draw "" only in terminal.
-        assert_eq!(
-            pane.scroll_right(&ScrollStep::Char(10)).unwrap(),
-            0
-        );
+        assert_eq!(pane.scroll_right(&ScrollStep::Char(10)).unwrap(), 0);
     }
 
     #[test]
     fn test_goto_vertical_lines() {
         let t = [
-            "", "", "", "", "", "", "", "", "", "",
-            "", "", "", "", "", "", "", "", "", "",
+            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
         let (_, sizer) = gen_sizer(2, 5);
@@ -786,10 +821,7 @@ mod tests {
             pane.goto_absolute_line(100).unwrap(),
             texts.borrow().len() as u16 - 1
         );
-        assert_eq!(
-            pane.position(),
-            (0, texts.borrow().len() as u16 - 1)
-        );
+        assert_eq!(pane.position(), (0, texts.borrow().len() as u16 - 1));
 
         // case: buffer height is less than pane height
         let (_, sizer) = gen_sizer(2, 10);
@@ -799,32 +831,18 @@ mod tests {
         pane.replace_termsize_getter(sizer);
         let pane_height = 8;
         let _ = pane.set_height(pane_height);
-        assert_eq!(
-            pane.goto_bottom_of_lines().unwrap(),
-            (0, 0)
-        );
-        assert_eq!(
-            pane.position(),
-            (0, 0)
-        );
+        assert_eq!(pane.goto_bottom_of_lines().unwrap(), (0, 0));
+        assert_eq!(pane.position(), (0, 0));
         let t = ["", "", "", "", "", "", "", "", "", ""];
         let texts = gen_texts(&t);
         pane.load(texts.clone());
-        assert_eq!(
-            pane.goto_bottom_of_lines().unwrap(),
-            (0, 2)
-        );
-        assert_eq!(
-            pane.position(),
-            (0, 2)
-        );
+        assert_eq!(pane.goto_bottom_of_lines().unwrap(), (0, 2));
+        assert_eq!(pane.position(), (0, 2));
     }
 
     #[test]
     fn test_goto_horizontal_line() {
-        let t = [
-            "1234567890123456789012345678901234567890"
-        ];
+        let t = ["1234567890123456789012345678901234567890"];
         let texts = gen_texts(&t);
         let (size, sizer) = gen_sizer(4, 2);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
@@ -861,10 +879,22 @@ mod tests {
         assert_eq!(pane.pane_size().unwrap(), (1, 5));
         assert_eq!(pane.set_height(0).unwrap(), 1);
         assert_eq!(pane.pane_size().unwrap(), (1, 1));
-        assert_eq!(pane.set_height(size.1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
-        assert_eq!(pane.set_height(size.1 + 1).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(
+            pane.set_height(size.1).unwrap(),
+            size.1 - Pane::MESSAGE_BAR_HEIGHT
+        );
+        assert_eq!(
+            pane.pane_size().unwrap(),
+            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+        );
+        assert_eq!(
+            pane.set_height(size.1 + 1).unwrap(),
+            size.1 - Pane::MESSAGE_BAR_HEIGHT
+        );
+        assert_eq!(
+            pane.pane_size().unwrap(),
+            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+        );
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
         assert_eq!(pane.pane_size().unwrap(), (1, 5));
@@ -881,8 +911,14 @@ mod tests {
         assert_eq!(pane.pane_size().unwrap(), (1, 6));
         assert_eq!(pane.increment_height(3).unwrap(), 9);
         assert_eq!(pane.pane_size().unwrap(), (1, 9));
-        assert_eq!(pane.increment_height(100).unwrap(), size.1 - Pane::MESSAGE_BAR_HEIGHT);
-        assert_eq!(pane.pane_size().unwrap(), (1, size.1 - Pane::MESSAGE_BAR_HEIGHT));
+        assert_eq!(
+            pane.increment_height(100).unwrap(),
+            size.1 - Pane::MESSAGE_BAR_HEIGHT
+        );
+        assert_eq!(
+            pane.pane_size().unwrap(),
+            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+        );
     }
 
     #[test]
@@ -895,8 +931,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_highlight_searcher() {
-    }
+    fn test_set_highlight_searcher() {}
 
     #[test]
     fn test_show_highlight() {
@@ -918,12 +953,8 @@ mod tests {
 
     #[test]
     fn test_load() {
-        let a = [
-            "1234567890123456789012345678901234567890"
-        ];
-        let b = [
-            "ABCD", "EFGH", "IJKL", "MNOP", "QRST", "UVWX", "YZ"
-        ];
+        let a = ["1234567890123456789012345678901234567890"];
+        let b = ["ABCD", "EFGH", "IJKL", "MNOP", "QRST", "UVWX", "YZ"];
         let atxt = gen_texts(&a);
         let btxt = gen_texts(&b);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
@@ -953,8 +984,7 @@ mod tests {
     #[test]
     fn test_limit_bottom_y() {
         let t = [
-            "", "", "", "", "", "", "", "", "", "",
-            "", "", "", "", "", "", "", "", "", "",
+            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let nbuflines = t.len() as u16;
         let texts = gen_texts(&t);
@@ -964,22 +994,15 @@ mod tests {
         pane.replace_termsize_getter(sizer);
 
         assert_eq!(pane.set_height(1).unwrap(), 1);
-        assert_eq!(
-            pane.limit_bottom_y().unwrap(),
-            nbuflines - 1
-        );
+        assert_eq!(pane.limit_bottom_y().unwrap(), nbuflines - 1);
         assert_eq!(pane.set_height(4).unwrap(), 4);
-        assert_eq!(
-            pane.limit_bottom_y().unwrap(),
-            nbuflines - 4
-        );
+        assert_eq!(pane.limit_bottom_y().unwrap(), nbuflines - 4);
     }
 
     #[test]
     fn test_range_of_visible_lines() {
         let t = [
-            "", "", "", "", "", "", "", "", "", "",
-            "", "", "", "", "", "", "", "", "", "",
+            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let nbuflines = t.len() as u16;
         let texts = gen_texts(&t);
@@ -990,16 +1013,13 @@ mod tests {
         assert_eq!(pane.set_height(5).unwrap(), 5);
 
         assert_eq!(pane.goto_absolute_line(0).unwrap(), 0);
-        assert_eq!(
-            pane.range_of_visible_lines().unwrap(),
-            0..5
-        );
+        assert_eq!(pane.range_of_visible_lines().unwrap(), 0..5);
         assert_eq!(pane.goto_absolute_line(10).unwrap(), 10);
+        assert_eq!(pane.range_of_visible_lines().unwrap(), 10..15);
         assert_eq!(
-            pane.range_of_visible_lines().unwrap(),
-            10..15
+            pane.goto_absolute_line(nbuflines - 1).unwrap(),
+            nbuflines - 1
         );
-        assert_eq!(pane.goto_absolute_line(nbuflines - 1).unwrap(), nbuflines - 1);
         assert_eq!(
             pane.range_of_visible_lines().unwrap(),
             (nbuflines as usize - 1)..(nbuflines as usize)

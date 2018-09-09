@@ -212,14 +212,18 @@ pub mod default {
                 PeepEvent::MoveDownHalfPages(_) => {
                     Some(PeepEvent::MoveDownHalfPages(valid_num(self.number)))
                 }
-                PeepEvent::MoveUpHalfPages(_) => Some(PeepEvent::MoveUpHalfPages(valid_num(self.number))),
+                PeepEvent::MoveUpHalfPages(_) => {
+                    Some(PeepEvent::MoveUpHalfPages(valid_num(self.number)))
+                }
                 PeepEvent::MoveLeftHalfPages(_) => {
                     Some(PeepEvent::MoveLeftHalfPages(valid_num(self.number)))
                 }
                 PeepEvent::MoveRightHalfPages(_) => {
                     Some(PeepEvent::MoveRightHalfPages(valid_num(self.number)))
                 }
-                PeepEvent::MoveDownPages(_) => Some(PeepEvent::MoveDownPages(valid_num(self.number))),
+                PeepEvent::MoveDownPages(_) => {
+                    Some(PeepEvent::MoveDownPages(valid_num(self.number)))
+                }
                 PeepEvent::MoveUpPages(_) => Some(PeepEvent::MoveUpPages(valid_num(self.number))),
                 PeepEvent::MoveToTopOfLines | PeepEvent::MoveToBottomOfLines => {
                     if self.number == 0 {
@@ -231,8 +235,12 @@ pub mod default {
                 PeepEvent::MoveToLineNumber(_) => {
                     Some(PeepEvent::MoveToLineNumber(valid_num(self.number)))
                 }
-                PeepEvent::IncrementLines(_) => Some(PeepEvent::IncrementLines(valid_num(self.number))),
-                PeepEvent::DecrementLines(_) => Some(PeepEvent::DecrementLines(valid_num(self.number))),
+                PeepEvent::IncrementLines(_) => {
+                    Some(PeepEvent::IncrementLines(valid_num(self.number)))
+                }
+                PeepEvent::DecrementLines(_) => {
+                    Some(PeepEvent::DecrementLines(valid_num(self.number)))
+                }
                 PeepEvent::SetNumOfLines(_) => {
                     if self.number == 0 {
                         None

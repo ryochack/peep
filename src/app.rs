@@ -4,7 +4,7 @@ extern crate termios;
 
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Cursor};
+use std::io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
 use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -73,8 +73,8 @@ impl PipeReader {
 
     /// Read from pipe input.
     fn read(&mut self, linebuf: &mut Vec<String>, timeout_ms: u64) -> io::Result<()> {
-        use mio::{Events, Ready, Poll, PollOpt, Token};
         use mio::unix::EventedFd;
+        use mio::{Events, Poll, PollOpt, Ready, Token};
         use std::os::unix::io::AsRawFd;
         use std::time::Duration;
 
@@ -84,11 +84,12 @@ impl PipeReader {
         let stdin = io::stdin();
 
         let poll = Poll::new()?;
-        poll.register(&EventedFd(
-                &stdin.as_raw_fd()),
-                Token(0),
-                Ready::readable(),
-                PollOpt::edge())?;
+        poll.register(
+            &EventedFd(&stdin.as_raw_fd()),
+            Token(0),
+            Ready::readable(),
+            PollOpt::edge(),
+        )?;
         let mut events = Events::with_capacity(1024);
 
         let mut buf = [0u8; INBUF_SIZE];
@@ -99,7 +100,9 @@ impl PipeReader {
             tmo = DEFAULT_POLL_TIMEOUT_MS;
 
             // time out
-            if events.is_empty() { break; }
+            if events.is_empty() {
+                break;
+            }
 
             let mut stdin = stdin.lock();
 
@@ -133,7 +136,6 @@ impl PipeReader {
         Ok(())
     }
 }
-
 
 pub struct App {
     pub show_linenumber: bool,
@@ -190,9 +192,13 @@ impl App {
             // read from stdin if pipe
             if termion::is_tty(&io::stdin()) {
                 // stdin is tty. not pipe.
-                return Err(io::Error::new(io::ErrorKind::NotFound, "Error. No input from stdin"));
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "Error. No input from stdin",
+                ));
             }
-            self.pipereader.read(&mut self.linebuf.borrow_mut(), tmo_ms)?;
+            self.pipereader
+                .read(&mut self.linebuf.borrow_mut(), tmo_ms)?;
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
@@ -203,7 +209,10 @@ impl App {
                 self.linebuf.borrow_mut().push(v);
             }
         } else {
-            return Err(io::Error::new(io::ErrorKind::NotFound, format!("Error. {} is not found", self.file_path)));
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Error. {} is not found", self.file_path),
+            ));
         }
         Ok(())
     }
