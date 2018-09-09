@@ -8,6 +8,11 @@ use std::time::Duration;
 use std::os::unix::io::{AsRawFd, RawFd};
 #[cfg(target_os = "linux")]
 use std::fs::File;
+#[cfg(target_os = "linux")]
+use std::io::{Seek, SeekFrom};
+#[cfg(target_os = "linux")]
+use mio::unix::EventedFd;
+
 
 use logger;
 
@@ -30,10 +35,6 @@ const NONE_WAIT_SEC: u64 = 60;
 #[cfg(target_os = "linux")]
 impl FileWatcher {
     pub fn new(file_path: &str) -> io::Result<Self> {
-        use std::io::{Seek, SeekFrom};
-        use std::os::unix::io::AsRawFd;
-        use mio::unix::EventedFd;
-
         let mut file = File::open(file_path).unwrap();
         file.seek(SeekFrom::End(0))?;
 
@@ -52,9 +53,8 @@ impl FileWatcher {
 }
 
 #[cfg(target_os = "linux")]
-pub impl FileWatch for FileWatcher {
+impl FileWatch for FileWatcher {
     fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
         self.poll.poll(&mut self.events, timeout)?;
         self.file.seek(SeekFrom::End(0))?;
         Ok(())
@@ -70,9 +70,6 @@ pub struct StdinWatcher {
 #[cfg(target_os = "linux")]
 impl StdinWatcher {
     pub fn new(fd: RawFd) -> io::Result<Self> {
-        use std::os::unix::io::AsRawFd;
-        use mio::unix::EventedFd;
-
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(1024);
 
@@ -82,16 +79,14 @@ impl StdinWatcher {
             mio::Ready::readable(),
             mio::PollOpt::edge(),
         )?;
-        let mut events = Events::with_capacity(1024);
-
         Ok( Self{ poll, events, } )
     }
 }
 
 #[cfg(target_os = "linux")]
 impl FileWatch for StdinWatcher {
-    pub fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        self.poll.poll(&mut self.events, timeout)?;
         Ok(())
     }
 }
