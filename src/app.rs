@@ -91,8 +91,7 @@ impl PipeReader {
                 PollOpt::edge())?;
         let mut events = Events::with_capacity(1024);
 
-        let mut buf = Vec::with_capacity(INBUF_SIZE);
-        unsafe { buf.set_len(INBUF_SIZE); }
+        let mut buf = [0u8; INBUF_SIZE];
 
         stdin.nonblocking();
         loop {
