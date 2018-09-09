@@ -4,7 +4,7 @@ extern crate termios;
 
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Cursor};
 use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -41,6 +41,101 @@ impl<'a> KeyEventHandler<'a> {
     }
 }
 
+struct PipeReader {
+    end_with_crlf: bool,
+}
+
+impl Default for PipeReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PipeReader {
+    pub fn new() -> Self {
+        Self {
+            end_with_crlf: true,
+        }
+    }
+
+    /// chomp end of CRFL. Return whethre it was chomped or not.
+    pub fn chomp(s: &mut String) -> bool {
+        if s.ends_with("\n") {
+            s.pop();
+            if s.ends_with("\r") {
+                s.pop();
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Read from pipe input.
+    fn read(&mut self, linebuf: &mut Vec<String>, timeout_ms: u64) -> io::Result<()> {
+        use mio::{Events, Ready, Poll, PollOpt, Token};
+        use mio::unix::EventedFd;
+        use std::os::unix::io::AsRawFd;
+        use std::time::Duration;
+
+        const INBUF_SIZE: usize = 8192;
+
+        let mut tmo = timeout_ms;
+        let stdin = io::stdin();
+
+        let poll = Poll::new()?;
+        poll.register(&EventedFd(
+                &stdin.as_raw_fd()),
+                Token(0),
+                Ready::readable(),
+                PollOpt::edge())?;
+        let mut events = Events::with_capacity(1024);
+
+        let mut buf = Vec::with_capacity(INBUF_SIZE);
+        unsafe { buf.set_len(INBUF_SIZE); }
+
+        stdin.nonblocking();
+        loop {
+            poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
+            tmo = DEFAULT_POLL_TIMEOUT_MS;
+
+            // time out
+            if events.is_empty() { break; }
+
+            let mut stdin = stdin.lock();
+
+            while let Ok(cap) = stdin.read(&mut buf) {
+                if cap == 0 {
+                    break;
+                }
+
+                let mut cursor = Cursor::new(&buf[..cap]);
+                loop {
+                    let mut line = String::new();
+                    if let Ok(n) = cursor.read_line(&mut line) {
+                        if n == 0 {
+                            break;
+                        }
+                        let is_chmoped = PipeReader::chomp(&mut line);
+
+                        if !self.end_with_crlf && linebuf.last_mut().is_some() {
+                            linebuf.last_mut().unwrap().push_str(&line);
+                        } else {
+                            linebuf.push(line);
+                        }
+                        self.end_with_crlf = is_chmoped;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        stdin.blocking();
+        Ok(())
+    }
+}
+
+
 pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
@@ -49,6 +144,7 @@ pub struct App {
     seek_pos: u64,
     searcher: Rc<RefCell<search::Search>>,
     linebuf: Rc<RefCell<Vec<String>>>,
+    pipereader: PipeReader,
     // termios parameter moved from KeyEventHandler to App to detect Drop App.
     term_restorer: Option<term::TermAttrRestorer>,
 }
@@ -85,46 +181,9 @@ impl App {
             seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
             linebuf: Rc::new(RefCell::new(Vec::new())),
+            pipereader: Default::default(),
             term_restorer: Some(term_restorer),
         }
-    }
-
-    // async read from stdin with timeout
-    fn async_pipe_read(&mut self, tmo_ms: u64) -> io::Result<()> {
-        use mio::{Events, Ready, Poll, PollOpt, Token};
-        use mio::unix::EventedFd;
-        use std::os::unix::io::AsRawFd;
-        use std::time::Duration;
-
-        let mut tmo = tmo_ms;
-        let stdin = io::stdin();
-
-        let poll = Poll::new()?;
-        poll.register(&EventedFd(&stdin.as_raw_fd()),
-        Token(0),
-        Ready::readable(),
-        PollOpt::edge())?;
-        let mut events = Events::with_capacity(1024);
-
-        stdin.nonblocking();
-        loop {
-            poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
-            tmo = DEFAULT_POLL_TIMEOUT_MS;
-            if events.is_empty() {
-                // time out
-                break;
-            }
-            for _event in &events {
-                let stdinlock = stdin.lock();
-                let mut lines_iter = stdinlock.lines();
-                while let Some(Ok(v)) = lines_iter.next() {
-                    self.linebuf.borrow_mut().push(v);
-                }
-            }
-        }
-        stdin.blocking();
-
-        Ok(())
     }
 
     fn read_buffer(&mut self, tmo_ms: u64) -> io::Result<()> {
@@ -134,7 +193,7 @@ impl App {
                 // stdin is tty. not pipe.
                 return Err(io::Error::new(io::ErrorKind::NotFound, "Error. No input from stdin"));
             }
-            self.async_pipe_read(tmo_ms)?;
+            self.pipereader.read(&mut self.linebuf.borrow_mut(), tmo_ms)?;
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
