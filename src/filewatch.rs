@@ -5,6 +5,7 @@ use std::sync::mpsc;
 use std::thread::{spawn, sleep};
 use std::io;
 use std::time::Duration;
+use std::os::unix::io::{AsRawFd, RawFd};
 #[cfg(target_os = "linux")]
 use std::fs::File;
 
@@ -46,13 +47,7 @@ impl FileWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok(
-            Self {
-                file,
-                poll,
-                events,
-            }
-          )
+        Ok( Self { file, poll, events, } )
     }
 }
 
@@ -62,6 +57,60 @@ pub impl FileWatch for FileWatcher {
         let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
         self.poll.poll(&mut self.events, timeout)?;
         self.file.seek(SeekFrom::End(0))?;
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub struct StdinWatcher {
+    poll: mio::Poll,
+    events: mio::Events,
+}
+
+#[cfg(target_os = "linux")]
+impl StdinWatcher {
+    pub fn new(fd: RawFd) -> io::Result<Self> {
+        use std::os::unix::io::AsRawFd;
+        use mio::unix::EventedFd;
+
+        let poll = mio::Poll::new()?;
+        let events = mio::Events::with_capacity(1024);
+
+        poll.register(
+            &EventedFd(&fd),
+            mio::Token(0),
+            mio::Ready::readable(),
+            mio::PollOpt::edge(),
+        )?;
+        let mut events = Events::with_capacity(1024);
+
+        Ok( Self{ poll, events, } )
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl FileWatch for StdinWatcher {
+    pub fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub struct StdinWatcher;
+
+#[cfg(target_os = "macos")]
+impl StdinWatcher {
+    pub fn new(_fd: RawFd) -> io::Result<Self> {
+        Ok( Self{} )
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl FileWatch for StdinWatcher {
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
+        sleep(timeout);
         Ok(())
     }
 }
@@ -89,8 +138,15 @@ impl FileWatch for Timeout {
 pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
     let mut fw: FileWatcher;
     let mut tm = Timeout;
+    let mut sw: StdinWatcher;
+    let stdin_fd = io::stdin().as_raw_fd();
     let filewatcher: &mut FileWatch = if file_path == "-" {
-        &mut tm
+        if let Ok(v) = StdinWatcher::new(stdin_fd) {
+            sw = v;
+            &mut sw
+        } else {
+            &mut tm
+        }
     } else {
         if let Ok(v) = FileWatcher::new(file_path) {
             fw = v;
