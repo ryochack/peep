@@ -20,7 +20,7 @@ impl FileWatch for StdinWatcher {
     }
 }
 
-type FileWatcher = Timeout;
+pub type FileWatcher = Timeout;
 
 impl FileWatcher {
     pub fn new(_file_path: &str) -> io::Result<Self> {
