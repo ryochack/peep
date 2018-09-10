@@ -270,8 +270,14 @@ impl<'a> Pane<'a> {
         let trimed = raw.get(uc_range.0..uc_range.1).unwrap();
 
         // highlight line
-        let hl_ranges = self.hl_match_ranges(raw);
-        let hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+        let hlline;
+        let decorated = if self.show_highlight {
+            let hl_ranges = self.hl_match_ranges(raw);
+            hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+            &hlline
+        } else {
+            trimed
+        };
 
         // add line number
         let lnum = if self.show_linenumber {
@@ -304,7 +310,7 @@ impl<'a> Pane<'a> {
             format!("{}", termion::style::Reset)
         };
 
-        format!("{}{}{}{}", lnum, sol, hlline, eol)
+        format!("{}{}{}{}", lnum, sol, decorated, eol)
     }
 
     pub fn refresh(&mut self) -> io::Result<()> {
