@@ -390,9 +390,9 @@ impl<'a> Pane<'a> {
         self.hlsearcher = searcher;
     }
 
-    pub fn set_message(&mut self, msg: Option<&str>) {
+    pub fn set_message(&mut self, msg: Option<String>) {
         if let Some(m) = msg {
-            self.message = m.to_owned();
+            self.message = m;
         } else {
             self.message.clear();
         }
@@ -932,7 +932,7 @@ mod tests {
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.set_message(None);
         assert!(pane.message.is_empty());
-        pane.set_message(Some("ThisIsTest"));
+        pane.set_message(Some("ThisIsTest".to_owned()));
         assert_eq!(pane.message, "ThisIsTest");
     }
 

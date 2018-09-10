@@ -17,7 +17,8 @@ use pane::{Pane, ScrollStep};
 use search;
 use term::{self, Block};
 
-static FOLLOWING_MESSAGE: &'static str = "\x1b[7mWaiting for data... (press 'F' to abort)\x1b[0m";
+const FOLLOWING_MESSAGE: &str = "\x1b[7mwaiting for data... (press 'F' to abort)\x1b[0m";
+const FOLLOWING_HL_MESSAGE: &str = "\x1b[7mwaiting for data... \x1b[0m:";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 200;
 
 pub struct KeyEventHandler<'a> {
@@ -142,6 +143,7 @@ pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
     pub follow_mode: bool,
+    typing_word: Option<String>,
     file_path: String,
     seek_pos: u64,
     searcher: Rc<RefCell<search::Search>>,
@@ -179,6 +181,7 @@ impl App {
             show_linenumber: false,
             nlines: 10,
             follow_mode: false,
+            typing_word: None,
             file_path: String::new(),
             seek_pos: 0,
             searcher: Rc::new(RefCell::new(search::PlaneSearcher::new())),
@@ -243,8 +246,8 @@ impl App {
         pane.set_height(self.nlines)?;
         if self.follow_mode {
             pane.goto_bottom_of_lines()?;
-            pane.set_message(Some(FOLLOWING_MESSAGE));
         }
+        pane.set_message(self.mode_default_message());
         pane.refresh()?;
 
         let key_sender = event_sender.clone();
@@ -280,6 +283,21 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn mode_default_message(&self) -> Option<String> {
+        if !self.follow_mode {
+            // normal mode
+            None
+        } else {
+            if let Some(ref tw) = self.typing_word {
+                // follow mode + highlighting
+                Some(format!("{}/{}", FOLLOWING_HL_MESSAGE, tw))
+            } else {
+                // follow mode
+                Some(FOLLOWING_MESSAGE.to_owned())
+            }
+        }
     }
 
     fn handle_normal(&mut self, event: &PeepEvent, pane: &mut Pane) -> io::Result<()> {
@@ -344,7 +362,7 @@ impl App {
                 pane.goto_absolute_line(n)?;
                 pane.refresh()?;
             }
-            &PeepEvent::ToggleLineNumberPrinting => {
+            PeepEvent::ToggleLineNumberPrinting => {
                 self.show_linenumber = !self.show_linenumber;
                 pane.show_line_number(self.show_linenumber);
                 pane.refresh()?;
@@ -362,7 +380,8 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::SearchIncremental(s) => {
-                pane.set_message(Some(&format!("/{}", s)));
+                self.typing_word = Some(s.to_owned());
+                pane.set_message(Some(format!("/{}", s)));
                 if s.is_empty() {
                     let _ = self.searcher.borrow_mut().set_pattern(&s);
                     pane.show_highlight(false);
@@ -376,7 +395,7 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::SearchTrigger => {
-                pane.set_message(None);
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::SearchNext => {
@@ -398,7 +417,7 @@ impl App {
                     }
                     pane.show_highlight(true);
                 }
-                pane.set_message(None);
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::SearchPrev => {
@@ -413,15 +432,16 @@ impl App {
                     }
                     pane.show_highlight(true);
                 }
-                pane.set_message(None);
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::Message(s) => {
-                pane.set_message(s.as_ref().map(|x| &**x));
+                pane.set_message(s.to_owned());
                 pane.refresh()?;
             }
             PeepEvent::Cancel => {
-                pane.set_message(None);
+                self.typing_word = None;
+                pane.set_message(self.mode_default_message());
                 pane.show_highlight(false);
                 pane.refresh()?;
             }
@@ -431,7 +451,7 @@ impl App {
                 // Reload file
                 self.read_buffer(DEFAULT_POLL_TIMEOUT_MS)?;
                 pane.goto_bottom_of_lines()?;
-                pane.set_message(Some(FOLLOWING_MESSAGE));
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::Quit => {
@@ -463,7 +483,8 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::SearchIncremental(s) => {
-                pane.set_message(Some(&format!("/{}", s)));
+                self.typing_word = Some(s.to_owned());
+                pane.set_message(Some(format!("{}/{}", FOLLOWING_HL_MESSAGE, s)));
                 if s.is_empty() {
                     let _ = self.searcher.borrow_mut().set_pattern(&s);
                     pane.show_highlight(false);
@@ -474,19 +495,26 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::SearchTrigger => {
-                pane.set_message(None);
+                self.typing_word = None;
+                pane.set_message(self.mode_default_message());
+                pane.refresh()?;
+            }
+            PeepEvent::Cancel => {
+                self.typing_word = None;
+                pane.set_message(self.mode_default_message());
+                pane.show_highlight(false);
                 pane.refresh()?;
             }
             PeepEvent::FileUpdated => {
                 self.read_buffer(DEFAULT_POLL_TIMEOUT_MS)?;
                 pane.goto_bottom_of_lines()?;
-                pane.set_message(Some(FOLLOWING_MESSAGE));
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::FollowMode => {
                 // Leave follow mode
                 self.follow_mode = false;
-                pane.set_message(None);
+                pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
             PeepEvent::Quit => {
