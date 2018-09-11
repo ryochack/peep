@@ -395,6 +395,7 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::SearchTrigger => {
+                self.typing_word = None;
                 pane.set_message(self.mode_default_message());
                 pane.refresh()?;
             }
