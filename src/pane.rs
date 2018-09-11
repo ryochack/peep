@@ -11,6 +11,7 @@ use termion;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
+const DEFAULT_TAB_WIDTH: u16 = 4;
 
 use std::fmt;
 pub struct ExtendMark(pub char);
@@ -38,6 +39,7 @@ pub struct Pane<'a> {
     hlsearcher: Rc<RefCell<Search>>,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
+    tab_width: u16,
 }
 
 #[derive(Debug)]
@@ -77,6 +79,7 @@ impl<'a> Pane<'a> {
             } else {
                 Box::new(termion::terminal_size)
             },
+            tab_width: DEFAULT_TAB_WIDTH,
         };
 
         // limit pane height if terminal height is less than pane height.
@@ -241,6 +244,14 @@ impl<'a> Pane<'a> {
         (us, ue)
     }
 
+    fn generate_tab_spaces(tab_width: u16) -> String {
+        let mut spaces = String::new();
+        for _ in 0..tab_width {
+            spaces.push(' ');
+        }
+        spaces
+    }
+
     /// Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let extend_mark_space: usize = 2;
@@ -263,16 +274,19 @@ impl<'a> Pane<'a> {
             };
         }
 
+        // replace tabs with spaces
+        let raw_notab = raw.replace('\t', &Pane::generate_tab_spaces(self.tab_width));
+
         // get range that considered to unicode width
-        let uc_range = Pane::unicode_range(raw, raw_range.0, raw_range.1);
+        let uc_range = Pane::unicode_range(&raw_notab, raw_range.0, raw_range.1);
 
         // trimed line
-        let trimed = raw.get(uc_range.0..uc_range.1).unwrap();
+        let trimed = raw_notab.get(uc_range.0..uc_range.1).unwrap();
 
         // highlight line
         let hlline;
         let decorated = if self.show_highlight {
-            let hl_ranges = self.hl_match_ranges(raw);
+            let hl_ranges = self.hl_match_ranges(&raw_notab);
             hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
             &hlline
         } else {
@@ -281,7 +295,6 @@ impl<'a> Pane<'a> {
 
         // add line number
         let lnum = if self.show_linenumber {
-            // TODO: dirty implementation...
             match lnpw {
                 0...2 => format!("{:>2}", line_number + 1),
                 3 => format!("{:>3}", line_number + 1),
@@ -300,7 +313,7 @@ impl<'a> Pane<'a> {
         };
 
         // add extend marks
-        let eol = if raw.len() > uc_range.1 {
+        let eol = if raw_notab.len() > uc_range.1 {
             format!(
                 "{}{}",
                 cursor_ext::HorizontalAbsolute(pane_width),
