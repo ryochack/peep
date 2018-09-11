@@ -28,12 +28,12 @@ peep [OPTION]... [FILE]
 
 ## Options
 ```
--n, --lines LINES   set height of pane
--N, --print-line-number
-                    print line numbers
--f, --follow        output appended data as the file grows
--h, --help          show this usage
--v, --version       show version
+-n, --lines LINES        set height of pane
+-t, --tab-width WIDTH    set tab width
+-N, --print-line-number  print line numbers
+-f, --follow             output appended data as the file grows
+-h, --help               show this usage
+-v, --version            show version
 ```
 
 ## Commands

@@ -17,6 +17,9 @@ use pane::{Pane, ScrollStep};
 use search;
 use term::{self, Block};
 
+const DEFAULT_PANE_HEIGHT: u16 = 10;
+const DEFAULT_TAB_WIDTH: u16 = 4;
+
 const FOLLOWING_MESSAGE: &str = "\x1b[7mwaiting for data... (press 'F' to abort)\x1b[0m";
 const FOLLOWING_HL_MESSAGE: &str = "\x1b[7mwaiting for data... \x1b[0m:";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 200;
@@ -143,6 +146,7 @@ pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
     pub follow_mode: bool,
+    pub tab_width: u16,
     typing_word: Option<String>,
     file_path: String,
     seek_pos: u64,
@@ -179,8 +183,9 @@ impl App {
 
         App {
             show_linenumber: false,
-            nlines: 10,
+            nlines: DEFAULT_PANE_HEIGHT,
             follow_mode: false,
+            tab_width: DEFAULT_TAB_WIDTH,
             typing_word: None,
             file_path: String::new(),
             seek_pos: 0,
@@ -243,6 +248,7 @@ impl App {
         pane.load(self.linebuf.clone());
         pane.set_highlight_searcher(self.searcher.clone());
         pane.show_line_number(self.show_linenumber);
+        pane.set_tab_width(self.tab_width);
         pane.set_height(self.nlines)?;
         if self.follow_mode {
             pane.goto_bottom_of_lines()?;

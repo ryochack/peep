@@ -11,7 +11,7 @@ use termion;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
-const DEFAULT_TAB_WIDTH: u16 = 4;
+const DEFAULT_TAB: &str = "    ";
 
 use std::fmt;
 pub struct ExtendMark(pub char);
@@ -39,7 +39,7 @@ pub struct Pane<'a> {
     hlsearcher: Rc<RefCell<Search>>,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
-    tab_width: u16,
+    tab: String,
 }
 
 #[derive(Debug)]
@@ -79,7 +79,7 @@ impl<'a> Pane<'a> {
             } else {
                 Box::new(termion::terminal_size)
             },
-            tab_width: DEFAULT_TAB_WIDTH,
+            tab: DEFAULT_TAB.to_owned(),
         };
 
         // limit pane height if terminal height is less than pane height.
@@ -244,14 +244,6 @@ impl<'a> Pane<'a> {
         (us, ue)
     }
 
-    fn generate_tab_spaces(tab_width: u16) -> String {
-        let mut spaces = String::new();
-        for _ in 0..tab_width {
-            spaces.push(' ');
-        }
-        spaces
-    }
-
     /// Decorate line
     fn decorate(&self, raw: &str, line_number: u16) -> String {
         let extend_mark_space: usize = 2;
@@ -275,7 +267,7 @@ impl<'a> Pane<'a> {
         }
 
         // replace tabs with spaces
-        let raw_notab = raw.replace('\t', &Pane::generate_tab_spaces(self.tab_width));
+        let raw_notab = raw.replace('\t', &self.tab);
 
         // get range that considered to unicode width
         let uc_range = Pane::unicode_range(&raw_notab, raw_range.0, raw_range.1);
@@ -607,6 +599,20 @@ impl<'a> Pane<'a> {
     pub fn decrement_height(&mut self, n: u16) -> io::Result<u16> {
         let height = if self.height > n { self.height - n } else { 1 };
         self.set_height(height)
+    }
+
+    /// Generate spaces to replace tab
+    fn generate_tab_spaces(tab_width: u16) -> String {
+        let mut spaces = String::new();
+        for _ in 0..tab_width {
+            spaces.push(' ');
+        }
+        spaces
+    }
+
+    /// Set tab width.
+    pub fn set_tab_width(&mut self, w: u16) {
+        self.tab = Pane::generate_tab_spaces(w);
     }
 }
 
