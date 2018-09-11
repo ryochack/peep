@@ -49,9 +49,9 @@ peep [OPTION]... [FILE]
 (num)h         Scroll horizontally left
 (num)L         Scroll horizontally right half page
 (num)H         Scroll horizontally left half page
-0              Go to the beggining of line
+0              Go to the beginning of line
 $              Go to the end of line
-g              Go to the beggining of file
+g              Go to the beginning of file
 G              Go to the end of file
 [num]g [num]G  Go to line [num]
 /pattern       Search forward in the file for the regex pattern
