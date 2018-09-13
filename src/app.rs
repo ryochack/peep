@@ -77,66 +77,58 @@ impl PipeReader {
 
     /// Read from pipe input.
     fn read(&mut self, linebuf: &mut Vec<String>, timeout_ms: u64) -> io::Result<()> {
-        // use mio::unix::EventedFd;
-        // use mio::{Events, Poll, PollOpt, Ready, Token};
         use std::os::unix::io::AsRawFd;
         use std::time::Duration;
 
         const INBUF_SIZE: usize = 8192;
 
-        let tmo = timeout_ms;
+        let mut tmo = timeout_ms;
         let stdin = io::stdin();
 
-        let mut stdinwatcher = filewatch::StdinWatcher::new(stdin.as_raw_fd()).unwrap();
-        // let poll = Poll::new()?;
-        // poll.register(
-        //     &EventedFd(&stdin.as_raw_fd()),
-        //     Token(0),
-        //     Ready::readable(),
-        //     PollOpt::edge(),
-        // )?;
-        // let mut events = Events::with_capacity(1024);
-
+        let mut stdinwatcher = filewatch::StdinWatcher::new(stdin.as_raw_fd())?;
         let mut buf = [0u8; INBUF_SIZE];
 
         stdin.nonblocking();
-        // poll.poll(&mut events, Some(Duration::from_millis(tmo)))?;
-        // tmo = DEFAULT_POLL_TIMEOUT_MS;
-
-        stdinwatcher.block(Some(Duration::from_millis(tmo)))?;
-
-        // time out
-        // if events.is_empty() {
-        //     break;
-        // }
-
         let mut stdinlock = stdin.lock();
 
-        while let Ok(cap) = stdinlock.read(&mut buf) {
-            if cap == 0 {
+        loop {
+            let ready = stdinwatcher.block(Some(Duration::from_millis(tmo)))?;
+            if ready.is_none() {
+                // time out
                 break;
             }
-
-            let mut cursor = Cursor::new(&buf[..cap]);
-            loop {
-                let mut line = String::new();
-                if let Ok(n) = cursor.read_line(&mut line) {
-                    if n == 0 {
-                        break;
-                    }
-                    let is_chmoped = PipeReader::chomp(&mut line);
-
-                    if !self.end_with_crlf && linebuf.last_mut().is_some() {
-                        linebuf.last_mut().unwrap().push_str(&line);
-                    } else {
-                        linebuf.push(line);
-                    }
-                    self.end_with_crlf = is_chmoped;
-                } else {
+            tmo = DEFAULT_POLL_TIMEOUT_MS;
+            while let Ok(cap) = stdinlock.read(&mut buf) {
+                if cap == 0 {
                     break;
                 }
+
+                let mut cursor = Cursor::new(&buf[..cap]);
+                loop {
+                    let mut line = String::new();
+                    if let Ok(n) = cursor.read_line(&mut line) {
+                        if n == 0 {
+                            break;
+                        }
+                        let is_chmoped = PipeReader::chomp(&mut line);
+
+                        if !self.end_with_crlf && linebuf.last_mut().is_some() {
+                            linebuf.last_mut().unwrap().push_str(&line);
+                        } else {
+                            linebuf.push(line);
+                        }
+                        self.end_with_crlf = is_chmoped;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            if ready.unwrap() {
+                // is_hup()?
+                break;
             }
         }
+
         stdin.blocking();
         Ok(())
     }

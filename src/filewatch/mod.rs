@@ -17,19 +17,24 @@ pub use self::macos::*;
 
 use logger;
 
+/// Returns one of the following values as io::Result<Option<(is_hup)>>.
+/// - Err() : Error
+/// - Ok(None) : Timeout
+/// - Ok(Some(false)) : Get event without hung up.
+/// - Ok(Some(true)) : Get event with hung up.  It is necessary to quit after read.
 pub trait FileWatch {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()>;
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>>;
 }
 
-const NONE_WAIT_SEC: u64 = 60;
+const NONE_WAIT_SEC: u64 = 1;
 
 pub struct Timeout;
 
 impl FileWatch for Timeout {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>> {
         let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
         sleep(timeout);
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -54,12 +59,13 @@ pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
         }
     };
 
-    let default_timeout = Duration::from_millis(500);
+    let default_timeout = Duration::from_secs(NONE_WAIT_SEC);
 
     loop {
-        filewatcher.block(Some(default_timeout)).unwrap();
-        event_sender.send(PeepEvent::FileUpdated).unwrap();
-        logger::log("file updated");
+        if filewatcher.block(Some(default_timeout)).unwrap().is_some() {
+            event_sender.send(PeepEvent::FileUpdated).unwrap();
+            logger::log("file updated");
+        }
     }
 }
 

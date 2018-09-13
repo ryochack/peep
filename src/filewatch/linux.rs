@@ -14,12 +14,11 @@ pub struct FileWatcher {
 
 impl FileWatcher {
     pub fn new(file_path: &str) -> io::Result<Self> {
-        let mut file = File::open(file_path).unwrap();
+        let mut file = File::open(file_path)?;
         file.seek(SeekFrom::End(0))?;
 
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(1024);
-
         poll.register(
             &EventedFd(&file.as_raw_fd()),
             mio::Token(0),
@@ -27,15 +26,21 @@ impl FileWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok( Self { file, poll, events, } )
+        Ok( Self { file, poll, events } )
     }
 }
 
 impl FileWatch for FileWatcher {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
         self.file.seek(SeekFrom::End(0))?;
-        Ok(())
+        Ok(
+            if self.events.is_empty() {
+                None
+            } else {
+                Some(false)
+            }
+          )
     }
 }
 
@@ -48,21 +53,26 @@ impl StdinWatcher {
     pub fn new(fd: RawFd) -> io::Result<Self> {
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(1024);
-
         poll.register(
             &EventedFd(&fd),
             mio::Token(0),
             mio::Ready::readable(),
             mio::PollOpt::edge(),
         )?;
-        Ok( Self{ poll, events, } )
+        Ok( Self{ poll, events } )
     }
 }
 
 impl FileWatch for StdinWatcher {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
-        Ok(())
+        Ok(
+            if self.events.is_empty() {
+                None
+            } else {
+                Some(false)
+            }
+          )
     }
 }
 
