@@ -23,7 +23,7 @@ use logger;
 /// - Ok(Some(false)) : Get event without hung up.
 /// - Ok(Some(true)) : Get event with hung up.  It is necessary to quit after read.
 pub trait FileWatch {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>>;
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>>;
 }
 
 const NONE_WAIT_SEC: u64 = 60;
@@ -31,7 +31,7 @@ const NONE_WAIT_SEC: u64 = 60;
 pub struct Timeout;
 
 impl FileWatch for Timeout {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>> {
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>> {
         let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
         sleep(timeout);
         Ok(None)
@@ -66,7 +66,7 @@ pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
     let default_timeout = Duration::from_secs(NONE_WAIT_SEC);
 
     loop {
-        if filewatcher.block(Some(default_timeout)).unwrap().is_some() {
+        if filewatcher.watch(Some(default_timeout)).unwrap().is_some() {
             event_sender.send(PeepEvent::FileUpdated).unwrap();
             logger::log("file updated");
         }

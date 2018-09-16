@@ -31,7 +31,7 @@ impl FileWatcher {
 }
 
 impl FileWatch for FileWatcher {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
         self.file.seek(SeekFrom::End(0))?;
         Ok(
@@ -65,7 +65,7 @@ impl StdinWatcher {
 }
 
 impl FileWatch for StdinWatcher {
-    fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
         Ok(
             if self.events.is_empty() {

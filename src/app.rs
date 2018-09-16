@@ -92,7 +92,7 @@ impl PipeReader {
         let mut stdinlock = stdin.lock();
 
         loop {
-            let ready = stdinwatcher.block(Some(Duration::from_millis(tmo)))?;
+            let ready = stdinwatcher.watch(Some(Duration::from_millis(tmo)))?;
             if ready.is_none() {
                 // time out
                 break;
