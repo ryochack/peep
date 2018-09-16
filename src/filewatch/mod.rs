@@ -26,7 +26,7 @@ pub trait FileWatch {
     fn block(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>>;
 }
 
-const NONE_WAIT_SEC: u64 = 1;
+const NONE_WAIT_SEC: u64 = 60;
 
 pub struct Timeout;
 
@@ -46,15 +46,19 @@ pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
     let filewatcher: &mut FileWatch = if file_path == "-" {
         if let Ok(v) = StdinWatcher::new(stdin_fd) {
             sw = v;
+            logger::log("get stdin watcher");
             &mut sw
         } else {
+            logger::log("get timeout1");
             &mut tm
         }
     } else {
         if let Ok(v) = FileWatcher::new(file_path) {
             fw = v;
+            logger::log("file watcher");
             &mut fw
         } else {
+            logger::log("get timeout2");
             &mut tm
         }
     };

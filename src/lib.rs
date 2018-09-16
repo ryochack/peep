@@ -1,3 +1,4 @@
+extern crate inotify;
 extern crate libc;
 extern crate mio;
 extern crate nix;
