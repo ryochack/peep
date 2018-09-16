@@ -38,7 +38,7 @@ impl FileWatch for Timeout {
     }
 }
 
-pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
+pub fn file_watcher(file_path: &str, event_sender: &mpsc::Sender<PeepEvent>) {
     let mut fw: FileWatcher;
     let mut tm = Timeout;
     let mut sw: StdinWatcher;
@@ -52,15 +52,13 @@ pub fn file_watcher(file_path: &str, event_sender: mpsc::Sender<PeepEvent>) {
             logger::log("get timeout1");
             &mut tm
         }
+    } else if let Ok(v) = FileWatcher::new(file_path) {
+        fw = v;
+        logger::log("file watcher");
+        &mut fw
     } else {
-        if let Ok(v) = FileWatcher::new(file_path) {
-            fw = v;
-            logger::log("file watcher");
-            &mut fw
-        } else {
-            logger::log("get timeout2");
-            &mut tm
-        }
+        logger::log("get timeout2");
+        &mut tm
     };
 
     let default_timeout = Duration::from_secs(NONE_WAIT_SEC);

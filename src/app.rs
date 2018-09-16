@@ -264,7 +264,7 @@ impl App {
 
         // spawn inotifier thread for following mode
         let file_path_to_watch = self.file_path.clone();
-        let _fwthread = spawn(move || filewatch::file_watcher(&file_path_to_watch, event_sender));
+        let _fwthread = spawn(move || filewatch::file_watcher(&file_path_to_watch, &event_sender));
 
         // app loop
         loop {
@@ -287,14 +287,12 @@ impl App {
         if !self.follow_mode {
             // normal mode
             None
+        } else if let Some(ref tw) = self.typing_word {
+            // follow mode + highlighting
+            Some(format!("{}/{}", FOLLOWING_HL_MESSAGE, tw))
         } else {
-            if let Some(ref tw) = self.typing_word {
-                // follow mode + highlighting
-                Some(format!("{}/{}", FOLLOWING_HL_MESSAGE, tw))
-            } else {
-                // follow mode
-                Some(FOLLOWING_MESSAGE.to_owned())
-            }
+            // follow mode
+            Some(FOLLOWING_MESSAGE.to_owned())
         }
     }
 
