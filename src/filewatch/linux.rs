@@ -1,10 +1,10 @@
-use std::io;
-use std::time::Duration;
-use std::os::unix::io::{AsRawFd, RawFd};
-use mio;
-use mio::unix::{EventedFd, UnixReady};
 use super::*;
 use inotify;
+use mio;
+use mio::unix::{EventedFd, UnixReady};
+use std::io;
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::time::Duration;
 
 pub struct FileWatcher {
     inotify: inotify::Inotify,
@@ -27,26 +27,29 @@ impl FileWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok( Self { inotify, poll, events, buffer: [0u8; 1024] } )
+        Ok(Self {
+            inotify,
+            poll,
+            events,
+            buffer: [0u8; 1024],
+        })
     }
 }
 
 impl FileWatch for FileWatcher {
     fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
-        Ok(
-            if self.events.is_empty() {
-                None
+        Ok(if self.events.is_empty() {
+            None
+        } else {
+            let evt = &self.events.iter().next();
+            self.inotify.read_events(&mut self.buffer)?;
+            if let Some(e) = evt {
+                Some(UnixReady::from(e.readiness()).is_hup())
             } else {
-                let evt = &self.events.iter().next();
-                self.inotify.read_events(&mut self.buffer)?;
-                if let Some(e) = evt {
-                    Some(UnixReady::from(e.readiness()).is_hup())
-                } else {
-                    None
-                }
+                None
             }
-        )
+        })
     }
 }
 
@@ -66,25 +69,22 @@ impl StdinWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok( Self{ poll, events } )
+        Ok(Self { poll, events })
     }
 }
 
 impl FileWatch for StdinWatcher {
     fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
-        Ok(
-            if self.events.is_empty() {
-                None
+        Ok(if self.events.is_empty() {
+            None
+        } else {
+            let evt = &self.events.iter().next();
+            if let Some(e) = evt {
+                Some(UnixReady::from(e.readiness()).is_hup())
             } else {
-                let evt = &self.events.iter().next();
-                if let Some(e) = evt {
-                    Some(UnixReady::from(e.readiness()).is_hup())
-                } else {
-                    None
-                }
+                None
             }
-        )
+        })
     }
 }
-

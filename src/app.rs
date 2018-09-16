@@ -537,11 +537,7 @@ impl App {
     fn search_rev(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
         let searcher = self.searcher.borrow();
         let ref_linebuf = self.linebuf.borrow();
-        for (i, line) in ref_linebuf[0..=(pos.1 as usize)]
-            .iter()
-            .rev()
-            .enumerate()
-        {
+        for (i, line) in ref_linebuf[0..=(pos.1 as usize)].iter().rev().enumerate() {
             if let Some(m) = searcher.find(line) {
                 return Some((m.start() as u16, pos.1 - i as u16));
             }

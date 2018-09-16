@@ -15,4 +15,4 @@ pub fn log(msg: &str) {
 }
 
 #[cfg(not(debug_assertions))]
-pub fn log(_: &str) { }
+pub fn log(_: &str) {}

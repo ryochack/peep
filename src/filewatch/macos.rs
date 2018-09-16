@@ -1,10 +1,10 @@
-use std::fs::File;
-use std::io::{self, Seek, SeekFrom};
-use std::time::Duration;
-use std::os::unix::io::{AsRawFd, RawFd};
+use super::*;
 use mio;
 use mio::unix::{EventedFd, UnixReady};
-use super::*;
+use std::fs::File;
+use std::io::{self, Seek, SeekFrom};
+use std::os::unix::io::{AsRawFd, RawFd};
+use std::time::Duration;
 
 pub struct FileWatcher {
     file: File,
@@ -26,7 +26,7 @@ impl FileWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok( Self { file, poll, events } )
+        Ok(Self { file, poll, events })
     }
 }
 
@@ -34,13 +34,11 @@ impl FileWatch for FileWatcher {
     fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
         self.file.seek(SeekFrom::End(0))?;
-        Ok(
-            if self.events.is_empty() {
-                None
-            } else {
-                Some(false)
-            }
-        )
+        Ok(if self.events.is_empty() {
+            None
+        } else {
+            Some(false)
+        })
     }
 }
 
@@ -60,25 +58,22 @@ impl StdinWatcher {
             mio::PollOpt::edge(),
         )?;
 
-        Ok( Self{ poll, events } )
+        Ok(Self { poll, events })
     }
 }
 
 impl FileWatch for StdinWatcher {
     fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         self.poll.poll(&mut self.events, timeout)?;
-        Ok(
-            if self.events.is_empty() {
-                None
+        Ok(if self.events.is_empty() {
+            None
+        } else {
+            let evt = &self.events.iter().next();
+            if let Some(e) = evt {
+                Some(UnixReady::from(e.readiness()).is_hup())
             } else {
-                let evt = &self.events.iter().next();
-                if let Some(e) = evt {
-                    Some(UnixReady::from(e.readiness()).is_hup())
-                } else {
-                    None
-                }
+                None
             }
-        )
+        })
     }
 }
-

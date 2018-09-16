@@ -1,9 +1,9 @@
 use event::PeepEvent;
+use std::io;
+use std::os::unix::io::AsRawFd;
 use std::sync::mpsc;
 use std::thread::sleep;
-use std::io;
 use std::time::Duration;
-use std::os::unix::io::AsRawFd;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -70,4 +70,3 @@ pub fn file_watcher(file_path: &str, event_sender: &mpsc::Sender<PeepEvent>) {
         }
     }
 }
-
