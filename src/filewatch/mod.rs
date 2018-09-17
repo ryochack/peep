@@ -15,8 +15,6 @@ pub mod macos;
 #[cfg(target_os = "macos")]
 pub use self::macos::*;
 
-use logger;
-
 /// Returns one of the following values as io::Result<Option<(is_hup)>>.
 /// - Err() : Error
 /// - Ok(None) : Timeout
@@ -46,18 +44,14 @@ pub fn file_watcher(file_path: &str, event_sender: &mpsc::Sender<PeepEvent>) {
     let filewatcher: &mut FileWatch = if file_path == "-" {
         if let Ok(v) = StdinWatcher::new(stdin_fd) {
             sw = v;
-            logger::log("get stdin watcher");
             &mut sw
         } else {
-            logger::log("get timeout1");
             &mut tm
         }
     } else if let Ok(v) = FileWatcher::new(file_path) {
         fw = v;
-        logger::log("file watcher");
         &mut fw
     } else {
-        logger::log("get timeout2");
         &mut tm
     };
 
@@ -66,7 +60,6 @@ pub fn file_watcher(file_path: &str, event_sender: &mpsc::Sender<PeepEvent>) {
     loop {
         if filewatcher.watch(Some(default_timeout)).unwrap().is_some() {
             event_sender.send(PeepEvent::FileUpdated).unwrap();
-            logger::log("file updated");
         }
     }
 }
