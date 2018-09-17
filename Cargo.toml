@@ -2,6 +2,16 @@
 name = "peep"
 version = "0.1.2"
 authors = ["ryochack <ryochack@gmail.com>"]
+description = "The CLI text viewer tool that works like `less` command on small pane within the terminal window."
+license = "MIT"
+repository = "https://github.com/ryochack/peep"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = [
+    "pager",
+    "less",
+    "more",
+]
 
 [dependencies]
 getopts = "0.2"
