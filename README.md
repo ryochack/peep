@@ -1,4 +1,5 @@
-![travis](https://travis-ci.org/ryochack/peep.svg?branch=master) 
+ [![crates.io](https://img.shields.io/crates/v/peep.svg)](https://crates.io/crates/peep)
+ [![travis](https://travis-ci.org/ryochack/peep.svg?branch=master)](https://travis-ci.org/ryochack/peep)
 
 # peep
 The CLI text viewer tool that works like `less` command on small pane within the terminal window.
@@ -20,6 +21,13 @@ The CLI text viewer tool that works like `less` command on small pane within the
 ![Follow Mode](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_follow.gif)
 ## Highlighting on Follow Mode
 ![Highlighting on Follow Mode](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_follow_hl.gif)
+
+# Installation
+```shell
+cargo install peep
+```
+
+If you don't have Rust toolchains, please refer to [The Rust Programming Language](https://www.rust-lang.org/).
 
 # Usage
 ```shell
