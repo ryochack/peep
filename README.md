@@ -6,6 +6,8 @@ The CLI text viewer tool that works like `less` command on small pane within the
 
 # Demos
 ## Pane on Terminal Window
+peep can view text file freely.
+
 ![Pane on Terminal Window](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo.gif)
 ## Read from Pipe
 ![Pipe Input](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_pipe.gif)
@@ -18,8 +20,13 @@ The CLI text viewer tool that works like `less` command on small pane within the
 ## Wide Width Character Support
 ![Wide Width Character Support](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_wide_width_chars.gif)
 ## Follow Mode
+peep has the follow mode that can monitor file updates and read them continuously like `tail -f` or `less +F`.  
+Also, peep can switch between the normal mode and follow mode with `F` command.
+
 ![Follow Mode](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_follow.gif)
 ## Highlighting on Follow Mode
+peep can highlight the regex word on the follow mode.
+
 ![Highlighting on Follow Mode](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_follow_hl.gif)
 
 # Installation
@@ -92,4 +99,4 @@ F              Toggle to normal mode
 
 # License
 MIT License.
-Please refer to LICENCE file.
+Please refer to LICENSE file.
