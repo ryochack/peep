@@ -68,6 +68,7 @@ pub mod default {
                 ("g", PeepEvent::MoveToTopOfLines),
                 ("G", PeepEvent::MoveToBottomOfLines),
                 ("#", PeepEvent::ToggleLineNumberPrinting),
+                ("!", PeepEvent::ToggleLineWraps),
                 ("-", PeepEvent::DecrementLines(1)),
                 ("+", PeepEvent::IncrementLines(1)),
                 ("=", PeepEvent::SetNumOfLines(0)),
@@ -298,6 +299,7 @@ mod tests {
         assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
         assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
         assert_eq!(kb.parse('#'), Some(PeepEvent::ToggleLineNumberPrinting));
+        assert_eq!(kb.parse('!'), Some(PeepEvent::ToggleLineWraps));
         assert_eq!(kb.parse('F'), Some(PeepEvent::FollowMode));
         assert_eq!(kb.parse('\x1b'), Some(PeepEvent::Cancel));
     }

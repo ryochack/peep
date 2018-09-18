@@ -17,6 +17,7 @@ pub enum PeepEvent {
     MoveToLineNumber(u16),
 
     ToggleLineNumberPrinting,
+    ToggleLineWraps,
     IncrementLines(u16),
     DecrementLines(u16),
     SetNumOfLines(u16),

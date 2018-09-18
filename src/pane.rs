@@ -4,7 +4,7 @@ use csi::cursor_ext;
 use search::{NullSearcher, Search};
 use std::cell::RefCell;
 use std::cmp;
-use std::io::{self, Write};
+use std::io::{self, BufRead, BufReader, Write};
 use std::ops;
 use std::rc::Rc;
 use termion;
@@ -20,7 +20,7 @@ impl fmt::Display for ExtendMark {
         write!(
             f,
             "{}{}{}",
-            termion::style::Invert,
+            termion::color::Fg(termion::color::LightBlack),
             self.0,
             termion::style::Reset
         )
@@ -247,7 +247,12 @@ impl<'a> Pane<'a> {
     }
 
     /// Decorate line
-    fn decorate(&self, raw: &str, line_number: u16) -> String {
+    ///
+    /// | 12+xxxxxxxxxxxxxxxxxxxxxxxxxx+|
+    /// | 13+xxxxxxx.                   |
+    /// | 14+xxxxxxxxxxxx.              |
+    ///
+    fn decorate_trim(&self, raw: &str, line_number: u16) -> String {
         let extend_mark_space: usize = 2;
 
         let pane_width = self.pane_size().unwrap().0;
@@ -320,19 +325,115 @@ impl<'a> Pane<'a> {
         format!("{}{}{}{}", lnum, sol, decorated, eol)
     }
 
+    /// Decorate line
+    ///
+    /// | 12 xxxxxxxxxxxxxxxxxxxxxxxxxxx|
+    /// |   >xxxxxxx.                   |
+    /// | 13 xxxxxxxxxxxx.              |
+    ///
+    fn decorate_wrap(&self, raw: &str, line_number: u16) -> String {
+        let extend_mark_space: usize = 1;
+
+        let pane_width = self.pane_size().unwrap().0;
+        let lnpw = if self.show_linenumber {
+            self.line_number_printing_width()
+        } else {
+            0
+        };
+        // subtract line number space and extend_mark space from raw_range
+        let line_cap_width = pane_width as usize - lnpw - extend_mark_space;
+
+        // replace tabs with spaces
+        let raw_notab = raw.replace('\t', &self.tab);
+
+        let mut s = 0;
+        let mut e = line_cap_width;
+
+        let mut wrapped = String::new();
+        while s <= raw_notab.len() {
+            // get range that considered to unicode width
+            let uc_range = Pane::unicode_range(&raw_notab, s, e);
+
+            // trimed line
+            let trimed = raw_notab.get(uc_range.0..uc_range.1).unwrap();
+
+            // highlight line
+            let hlline;
+            let decorated = if self.show_highlight {
+                let hl_ranges = self.hl_match_ranges(&raw_notab);
+                hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+                &hlline
+            } else {
+                trimed
+            };
+
+            // add line number
+            let lnum = if self.show_linenumber {
+                if s == 0 {
+                    match lnpw {
+                        0...2 => format!("{:>2}", line_number + 1),
+                        3 => format!("{:>3}", line_number + 1),
+                        4 => format!("{:>4}", line_number + 1),
+                        _ => format!("{:>5}", line_number + 1),
+                    }
+                } else {
+                    match lnpw {
+                        0...2 => "  ".to_owned(),
+                        3 => "   ".to_owned(),
+                        4 => "    ".to_owned(),
+                        _ => "     ".to_owned(),
+                    }
+                }
+            } else {
+                String::new()
+            };
+
+            // add wrap marks
+            let sol = if s > 0 {
+                format!("{}", ExtendMark('+'))
+            } else {
+                " ".to_owned()
+            };
+
+            wrapped.push_str(&format!("{}{}{}\n", lnum, sol, decorated));
+
+            s = e;
+            e += line_cap_width;
+        }
+
+        wrapped
+    }
+
+    fn decorate(&self, raw: &str, line_number: u16) -> String {
+        if self.wraps_line {
+            self.decorate_wrap(raw, line_number)
+        } else {
+            self.decorate_trim(raw, line_number)
+        }
+    }
+
     pub fn refresh(&mut self) -> io::Result<()> {
         // decorate content lines
         let pane_height = self.pane_size()?.1;
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
-        for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
+
+        let mut n = 0;
+        let limit = buf_range.len();
+
+        'outer: for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
             .iter()
             .enumerate()
         {
-            block.push_str(&format!(
-                "{}\n",
-                self.decorate(&line, (buf_range.start + i) as u16)
-            ));
+            let deco = self.decorate(&line, (buf_range.start + i) as u16);
+            let br = BufReader::new(deco.as_bytes());
+            for lline in br.lines() {
+                block.push_str(&format!( "{}\n", lline?));
+                n += 1;
+                if n >= limit {
+                    break 'outer;
+                }
+            }
         }
 
         // move down to message bar position

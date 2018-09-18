@@ -365,6 +365,11 @@ impl App {
                 pane.show_line_number(self.show_linenumber);
                 pane.refresh()?;
             }
+            PeepEvent::ToggleLineWraps => {
+                self.wraps_line = !self.wraps_line;
+                pane.set_wrap(self.wraps_line);
+                pane.refresh()?;
+            }
             &PeepEvent::IncrementLines(n) => {
                 pane.increment_height(n)?;
                 pane.refresh()?;
