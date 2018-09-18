@@ -138,6 +138,7 @@ pub struct App {
     pub nlines: u16,
     pub follow_mode: bool,
     pub tab_width: u16,
+    pub wraps_line: bool,
     typing_word: Option<String>,
     file_path: String,
     seek_pos: u64,
@@ -177,6 +178,7 @@ impl App {
             nlines: DEFAULT_PANE_HEIGHT,
             follow_mode: false,
             tab_width: DEFAULT_TAB_WIDTH,
+            wraps_line: false,
             typing_word: None,
             file_path: String::new(),
             seek_pos: 0,
@@ -240,6 +242,7 @@ impl App {
         pane.set_highlight_searcher(self.searcher.clone());
         pane.show_line_number(self.show_linenumber);
         pane.set_tab_width(self.tab_width);
+        pane.set_wrap(self.wraps_line);
         pane.set_height(self.nlines)?;
         if self.follow_mode {
             pane.goto_bottom_of_lines()?;

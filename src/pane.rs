@@ -40,6 +40,7 @@ pub struct Pane<'a> {
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
     tab: String,
+    wraps_line: bool,
 }
 
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl<'a> Pane<'a> {
                 Box::new(termion::terminal_size)
             },
             tab: DEFAULT_TAB.to_owned(),
+            wraps_line: false,
         };
 
         // limit pane height if terminal height is less than pane height.
@@ -613,6 +615,11 @@ impl<'a> Pane<'a> {
     /// Set tab width.
     pub fn set_tab_width(&mut self, w: u16) {
         self.tab = Pane::generate_tab_spaces(w);
+    }
+
+    /// Set wrap-line option.
+    pub fn set_wrap(&mut self, b: bool) {
+        self.wraps_line = b;
     }
 }
 

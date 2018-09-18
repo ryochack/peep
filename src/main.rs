@@ -41,6 +41,7 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     (num)-         Decrement screen height
     [num]=         Set screen height to [num]
     #              Toggle line number printing
+    !              Toggle text wrap
     ESC            Cancel
     F              Toggle to follow mode
 
@@ -51,6 +52,7 @@ Commands on Following Mode:
     (num)-         Decrement screen height
     [num]=         Set screen height to [num]
     #              Toggle line number printing
+    !              Toggle text wrap
     ESC            Cancel
     F              Toggle to normal mode"
     );
@@ -70,6 +72,7 @@ fn run() -> io::Result<()> {
         .optopt("t", "tab-width", "set tab width", "WIDTH")
         .optflag("N", "print-line-number", "print line numbers")
         .optflag("f", "follow", "output appended data as the file grows")
+        .optflag("w", "wrap", "wrap text line")
         .optflag("h", "help", "show this usage")
         .optflag("v", "version", "show version");
 
@@ -103,6 +106,7 @@ fn run() -> io::Result<()> {
     let mut app: App = Default::default();
     app.show_linenumber = matches.opt_present("N");
     app.follow_mode = matches.opt_present("f");
+    app.wraps_line = matches.opt_present("w");
     if let Ok(Some(nlines)) = matches.opt_get::<u16>("n") {
         app.nlines = nlines;
     }
