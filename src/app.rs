@@ -1,6 +1,5 @@
 extern crate ctrlc;
 extern crate termion;
-extern crate termios;
 
 use std::cell::RefCell;
 use std::fs::File;
