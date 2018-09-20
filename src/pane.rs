@@ -431,7 +431,7 @@ impl<'a> Pane<'a> {
         }
 
         // message line
-        if self.message.is_empty() && buf_range.end == self.linebuf.borrow().len() {
+        if self.message.is_empty() && buf_range.start >= self.limit_bottom_y()? as usize {
             block.push_str(&format!(
                 "{}(END){}",
                 termion::style::Invert,
