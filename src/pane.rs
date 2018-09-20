@@ -253,25 +253,14 @@ impl<'a> Pane<'a> {
     /// | 14+xxxxxxxxxxxx.              |
     ///
     fn decorate_trim(&self, raw: &str, line_number: u16) -> String {
-        let extend_mark_space: usize = 2;
-
-        let pane_width = self.pane_size().unwrap().0;
-
         // visble raw trimming range
-        let mut raw_range = (
+        let raw_range = (
             self.cur_pos.0 as usize,
-            (self.cur_pos.0 + pane_width) as usize - extend_mark_space,
+            self.cur_pos.0 as usize + self.width_of_text_area(),
         );
 
         // subtract line number space from raw_range
         let lnpw = self.line_number_printing_width();
-        if self.show_linenumber {
-            raw_range.1 = if raw_range.1 - lnpw > raw_range.0 {
-                raw_range.1 - lnpw
-            } else {
-                raw_range.0
-            };
-        }
 
         // replace tabs with spaces
         let raw_notab = raw.replace('\t', &self.tab);
@@ -315,7 +304,7 @@ impl<'a> Pane<'a> {
         let eol = if raw_notab.len() > uc_range.1 {
             format!(
                 "{}{}",
-                cursor_ext::HorizontalAbsolute(pane_width),
+                cursor_ext::HorizontalAbsolute(self.pane_size().unwrap().0),
                 ExtendMark('+')
             )
         } else {
@@ -332,16 +321,13 @@ impl<'a> Pane<'a> {
     /// | 13 xxxxxxxxxxxx.              |
     ///
     fn decorate_wrap(&self, raw: &str, line_number: u16) -> String {
-        let extend_mark_space: usize = 1;
-
-        let pane_width = self.pane_size().unwrap().0;
         let lnpw = if self.show_linenumber {
             self.line_number_printing_width()
         } else {
             0
         };
         // subtract line number space and extend_mark space from raw_range
-        let line_cap_width = pane_width as usize - lnpw - extend_mark_space;
+        let line_cap_width = self.width_of_text_area();
 
         // replace tabs with spaces
         let raw_notab = raw.replace('\t', &self.tab);
@@ -377,6 +363,7 @@ impl<'a> Pane<'a> {
                         _ => format!("{:>5}", line_number + 1),
                     }
                 } else {
+                    // from the second line
                     match lnpw {
                         0...2 => "  ".to_owned(),
                         3 => "   ".to_owned(),
@@ -417,9 +404,7 @@ impl<'a> Pane<'a> {
         let pane_height = self.pane_size()?.1;
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
-
         let mut n = 0;
-        let limit = buf_range.len();
 
         'outer: for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
             .iter()
@@ -430,7 +415,7 @@ impl<'a> Pane<'a> {
             for lline in br.lines() {
                 block.push_str(&format!( "{}\n", lline?));
                 n += 1;
-                if n >= limit {
+                if n >= pane_height {
                     break 'outer;
                 }
             }
@@ -531,16 +516,63 @@ impl<'a> Pane<'a> {
         self.cur_pos
     }
 
-    /// Return the end of y that is considered buffer lines and window size
+    /// Return logical lines (wrapped lines) of specified line number.
+    fn count_wrapped_lines(&self, text: &str) -> u16 {
+        let pane_width = self.width_of_text_area();
+        if pane_width == 0 {
+            0
+        } else {
+            (text.len() / pane_width) as u16 + 1
+        }
+    }
+
+    /// Return the end of y that is considered buffer lines and window size and wrapped lines.
     fn limit_bottom_y(&self) -> io::Result<u16> {
         let linebuf_height = self.linebuf.borrow().len() as u16;
         let pane_height = self.pane_size()?.1;
 
-        Ok(if linebuf_height > pane_height {
-            linebuf_height - pane_height
+        if !self.wraps_line {
+            return Ok(if linebuf_height > pane_height {
+                linebuf_height - pane_height
+            } else {
+                0
+            });
+        }
+
+        // self.wraps_line is enabled
+        let mut sum = 0;
+        for i in (0..linebuf_height).rev() {
+            sum += self.count_wrapped_lines(&self.linebuf.borrow()[i as usize]);
+            if sum >= pane_height {
+                return Ok(if i == linebuf_height {
+                    linebuf_height
+                } else {
+                    i + 1
+                })
+            }
+        }
+        return Ok(0)
+    }
+
+    /// Return text area width.
+    fn width_of_text_area(&self) -> usize {
+        let pane_width = self.pane_size().unwrap().0 as usize;
+        let extend_mark_space: usize = if self.wraps_line {
+            1
+        } else {
+            2
+        };
+        let lnpw: usize = if self.show_linenumber {
+            self.line_number_printing_width()
         } else {
             0
-        })
+        };
+
+        if pane_width > lnpw + extend_mark_space {
+            pane_width - lnpw - extend_mark_space
+        } else {
+            0
+        }
     }
 
     /// Return range of visible lines from current line to buffer line end or bottom of pane.
@@ -602,10 +634,12 @@ impl<'a> Pane<'a> {
     pub fn scroll_down(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         let step = ss.to_numof_chars(self.pane_size()?.1);
         let end_y = self.limit_bottom_y()?;
-        let astep = if self.cur_pos.1 + step < end_y {
+        let astep = if end_y > self.cur_pos.1 + step {
             step
-        } else {
+        } else if end_y > self.cur_pos.1 {
             end_y - self.cur_pos.1
+        } else {
+            0
         };
         self.cur_pos.1 += astep;
         Ok(astep)
@@ -669,12 +703,12 @@ impl<'a> Pane<'a> {
 
     /// Go to specified absolute line number.
     /// Scroll so that the specified line appears at the top of the pane.
-    pub fn goto_absolute_line(&mut self, line: u16) -> io::Result<u16> {
+    pub fn goto_absolute_line(&mut self, lineno: u16) -> io::Result<u16> {
         let buf_height = self.linebuf.borrow().len() as u16;
-        self.cur_pos.1 = if line >= buf_height {
+        self.cur_pos.1 = if lineno >= buf_height {
             buf_height - 1
         } else {
-            line
+            lineno
         };
         Ok(self.cur_pos.1)
     }
