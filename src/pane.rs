@@ -613,6 +613,9 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_left(&mut self, ss: &ScrollStep) -> io::Result<u16> {
+        if self.wraps_line {
+            return Ok(0)
+        }
         let step = ss.to_numof_chars(self.pane_printable_width()?);
         let astep = if self.cur_pos.0 > step {
             step
@@ -625,6 +628,9 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
+        if self.wraps_line {
+            return Ok(0)
+        }
         let step = ss.to_numof_chars(self.pane_printable_width()?);
         let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
         let x = self.limit_right_x(self.cur_pos.0 + step, max_line_width)?;
@@ -646,14 +652,18 @@ impl<'a> Pane<'a> {
 
     /// Go to head of current line.
     pub fn goto_head_of_line(&mut self) -> io::Result<(u16, u16)> {
-        self.cur_pos.0 = 0;
+        if !self.wraps_line {
+            self.cur_pos.0 = 0;
+        }
         Ok(self.cur_pos)
     }
 
     /// Go to tail of current line.
     pub fn goto_tail_of_line(&mut self) -> io::Result<(u16, u16)> {
-        let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
-        self.cur_pos.0 = self.limit_right_x(max_line_width, max_line_width).unwrap();
+        if !self.wraps_line {
+            let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
+            self.cur_pos.0 = self.limit_right_x(max_line_width, max_line_width).unwrap();
+        }
         Ok(self.cur_pos)
     }
 
@@ -670,8 +680,10 @@ impl<'a> Pane<'a> {
     }
 
     pub fn goto_absolute_horizontal_offset(&mut self, offset: u16) -> io::Result<u16> {
-        let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
-        self.cur_pos.0 = self.limit_right_x(offset, max_line_width)?;
+        if !self.wraps_line {
+            let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
+            self.cur_pos.0 = self.limit_right_x(offset, max_line_width)?;
+        }
         Ok(self.cur_pos.0)
     }
 
@@ -721,6 +733,9 @@ impl<'a> Pane<'a> {
     /// Set wrap-line option.
     pub fn set_wrap(&mut self, b: bool) {
         self.wraps_line = b;
+        if self.wraps_line {
+            self.cur_pos.0 = 0;
+        }
     }
 }
 
