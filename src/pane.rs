@@ -5,10 +5,12 @@ use search::{NullSearcher, Search};
 use std::cell::RefCell;
 use std::cmp;
 use std::io::{self, BufRead, BufReader, Write};
+use std::io::{Seek, SeekFrom};
 use std::ops;
 use std::rc::Rc;
 use termion;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_divide::UnicodeStrDivider;
+use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
 const DEFAULT_TAB: &str = "    ";
@@ -211,41 +213,6 @@ impl<'a> Pane<'a> {
         hlline
     }
 
-    /// Get ranges that is considered unicode width
-    fn unicode_range(raw: &str, start: usize, end: usize) -> (usize, usize) {
-        if start >= UnicodeWidthStr::width(raw) {
-            return (raw.len(), raw.len());
-        }
-
-        let mut found_start = start == 0;
-        let mut width_from_head = 0;
-        let limit_width = end - start;
-        let mut awidth = 0;
-        let mut us = 0;
-        let mut ue = raw.len();
-        for (i, c) in raw.char_indices() {
-            if let Some(n) = c.width_cjk() {
-                if !found_start {
-                    // decide us
-                    if width_from_head >= start {
-                        us = i;
-                        found_start = true;
-                    }
-                    width_from_head += n;
-                }
-                if found_start {
-                    // decide ue
-                    if awidth >= limit_width {
-                        ue = i;
-                        break;
-                    }
-                    awidth += n;
-                }
-            }
-        }
-        (us, ue)
-    }
-
     /// Decorate line
     ///
     /// | 12+xxxxxxxxxxxxxxxxxxxxxxxxxx+|
@@ -253,23 +220,17 @@ impl<'a> Pane<'a> {
     /// | 14+xxxxxxxxxxxx.              |
     ///
     fn decorate_trim(&self, raw: &str, line_number: u16) -> String {
-        // visble raw trimming range
-        let raw_range = (
-            self.cur_pos.0 as usize,
-            self.cur_pos.0 as usize + self.width_of_text_area(),
-        );
-
         // subtract line number space from raw_range
         let lnpw = self.line_number_printing_width();
 
         // replace tabs with spaces
         let raw_notab = raw.replace('\t', &self.tab);
 
-        // get range that considered to unicode width
-        let uc_range = Pane::unicode_range(&raw_notab, raw_range.0, raw_range.1);
-
-        // trimed line
-        let trimed = raw_notab.get(uc_range.0..uc_range.1).unwrap();
+        // trim unicode str considering visual unicode width
+        let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
+        let _ = ucdiv.seek(SeekFrom::Start(self.cur_pos.0 as u64));
+        let trimed = ucdiv.next().unwrap_or("");
+        let uc_range = ucdiv.last_range();
 
         // highlight line
         let hlline;
@@ -332,16 +293,15 @@ impl<'a> Pane<'a> {
         // replace tabs with spaces
         let raw_notab = raw.replace('\t', &self.tab);
 
+        let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
+
         let mut s = 0;
         let mut e = line_cap_width;
 
         let mut wrapped = String::new();
-        while s <= raw_notab.len() {
-            // get range that considered to unicode width
-            let uc_range = Pane::unicode_range(&raw_notab, s, e);
 
-            // trimed line
-            let trimed = raw_notab.get(uc_range.0..uc_range.1).unwrap();
+        while let Some(trimed) = ucdiv.next() {
+            let uc_range = ucdiv.last_range();
 
             // highlight line
             let hlline;
@@ -388,6 +348,39 @@ impl<'a> Pane<'a> {
             e += line_cap_width;
         }
 
+        if wrapped.is_empty() {
+            // add line number
+            let lnum = if self.show_linenumber {
+                if s == 0 {
+                    match lnpw {
+                        0...2 => format!("{:>2}", line_number + 1),
+                        3 => format!("{:>3}", line_number + 1),
+                        4 => format!("{:>4}", line_number + 1),
+                        _ => format!("{:>5}", line_number + 1),
+                    }
+                } else {
+                    // from the second line
+                    match lnpw {
+                        0...2 => "  ".to_owned(),
+                        3 => "   ".to_owned(),
+                        4 => "    ".to_owned(),
+                        _ => "     ".to_owned(),
+                    }
+                }
+            } else {
+                String::new()
+            };
+
+            // add wrap marks
+            let sol = if s > 0 {
+                format!("{}", ExtendMark('+'))
+            } else {
+                " ".to_owned()
+            };
+
+            wrapped.push_str(&format!("{}{}\n", lnum, sol));
+        }
+
         wrapped
     }
 
@@ -413,7 +406,7 @@ impl<'a> Pane<'a> {
             let deco = self.decorate(&line, (buf_range.start + i) as u16);
             let br = BufReader::new(deco.as_bytes());
             for lline in br.lines() {
-                block.push_str(&format!( "{}\n", lline?));
+                block.push_str(&format!("{}\n", lline?));
                 n += 1;
                 if n >= pane_height {
                     break 'outer;
@@ -548,20 +541,16 @@ impl<'a> Pane<'a> {
                     linebuf_height
                 } else {
                     i + 1
-                })
+                });
             }
         }
-        return Ok(0)
+        return Ok(0);
     }
 
     /// Return text area width.
     fn width_of_text_area(&self) -> usize {
         let pane_width = self.pane_size().unwrap().0 as usize;
-        let extend_mark_space: usize = if self.wraps_line {
-            1
-        } else {
-            2
-        };
+        let extend_mark_space: usize = if self.wraps_line { 1 } else { 2 };
         let lnpw: usize = if self.show_linenumber {
             self.line_number_printing_width()
         } else {
@@ -648,7 +637,7 @@ impl<'a> Pane<'a> {
     // return actual scroll distance
     pub fn scroll_left(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         if self.wraps_line {
-            return Ok(0)
+            return Ok(0);
         }
         let step = ss.to_numof_chars(self.pane_printable_width()?);
         let astep = if self.cur_pos.0 > step {
@@ -663,7 +652,7 @@ impl<'a> Pane<'a> {
     // return actual scroll distance
     pub fn scroll_right(&mut self, ss: &ScrollStep) -> io::Result<u16> {
         if self.wraps_line {
-            return Ok(0)
+            return Ok(0);
         }
         let step = ss.to_numof_chars(self.pane_printable_width()?);
         let max_line_width = self.max_width_of_visible_lines(self.range_of_visible_lines()?);
@@ -1227,32 +1216,5 @@ mod tests {
             // remain 10
             max_text_length - size.0 + Pane::MARGIN_RIGHT_WIDTH
         );
-    }
-
-    #[test]
-    fn test_uncode_range() {
-        let ustr = "0123456789１２３４５６７８９０0123456789";
-        //          0123456789012345678901234567890123456789
-        //  0-10:10 |--------| 10
-        //  1- 5: 4  |--| 4
-        //  8-13: 5         |--| 4
-        // 10-20:10           |--------| 10
-        let r = Pane::unicode_range(ustr, 0, 10);
-        assert_eq!(&ustr[r.0..r.1], "0123456789");
-
-        let r = Pane::unicode_range(ustr, 1, 5);
-        assert_eq!(&ustr[r.0..r.1], "1234");
-
-        let r = Pane::unicode_range(ustr, 8, 12);
-        assert_eq!(&ustr[r.0..r.1], "89１");
-
-        let r = Pane::unicode_range(ustr, 10, 20);
-        assert_eq!(&ustr[r.0..r.1], "１２３４５");
-
-        let r = Pane::unicode_range(ustr, 15, 15);
-        assert_eq!(&ustr[r.0..r.1], "");
-
-        let r = Pane::unicode_range(ustr, 23, 35);
-        assert_eq!(&ustr[r.0..r.1], "８９０012345");
     }
 }
