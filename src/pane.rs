@@ -34,6 +34,7 @@ pub struct Pane<'a> {
     writer: Box<RefCell<'a + Write>>,
     height: u16,
     numof_flushed_lines: u16,
+    numof_semantic_flushed_lines: u16,
     // cur_pos: (x, y)
     cur_pos: (u16, u16),
     show_linenumber: bool,
@@ -72,6 +73,7 @@ impl<'a> Pane<'a> {
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
             numof_flushed_lines: DEFAULT_PANE_HEIGHT,
+            numof_semantic_flushed_lines: DEFAULT_PANE_HEIGHT,
             cur_pos: (0, 0),
             show_linenumber: false,
             show_highlight: false,
@@ -90,6 +92,7 @@ impl<'a> Pane<'a> {
         pane.set_height(DEFAULT_PANE_HEIGHT)
             .expect("terminal_size get error");
         pane.numof_flushed_lines = pane.height;
+        pane.numof_semantic_flushed_lines = pane.height;
 
         pane.sweep(pane.height);
         pane.move_to_message_line();
@@ -409,6 +412,7 @@ impl<'a> Pane<'a> {
                 block.push_str(&format!("{}\n", lline?));
                 n += 1;
                 if n >= pane_height {
+                    self.numof_semantic_flushed_lines = i as u16 + 1;
                     break 'outer;
                 }
             }
@@ -609,7 +613,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_up(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.pane_size()?.1);
+        let step = ss.to_numof_chars(self.numof_semantic_flushed_lines);
         let astep = if self.cur_pos.1 > step {
             step
         } else {
@@ -621,7 +625,7 @@ impl<'a> Pane<'a> {
 
     // return actual scroll distance
     pub fn scroll_down(&mut self, ss: &ScrollStep) -> io::Result<u16> {
-        let step = ss.to_numof_chars(self.pane_size()?.1);
+        let step = ss.to_numof_chars(self.numof_semantic_flushed_lines);
         let end_y = self.limit_bottom_y()?;
         let astep = if end_y > self.cur_pos.1 + step {
             step
