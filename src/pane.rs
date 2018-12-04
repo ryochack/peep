@@ -8,12 +8,13 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::io::{Seek, SeekFrom};
 use std::ops;
 use std::rc::Rc;
+use tab::TabExpander;
 use termion;
 use unicode_divide::UnicodeStrDivider;
 use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
-const DEFAULT_TAB: &str = "    ";
+const DEFAULT_TAB_WIDTH: u16 = 4;
 
 use std::fmt;
 pub struct ExtendMark(pub char);
@@ -42,7 +43,7 @@ pub struct Pane<'a> {
     hlsearcher: Rc<RefCell<Search>>,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
-    tab: String,
+    tab: TabExpander,
     wraps_line: bool,
 }
 
@@ -84,7 +85,7 @@ impl<'a> Pane<'a> {
             } else {
                 Box::new(termion::terminal_size)
             },
-            tab: DEFAULT_TAB.to_owned(),
+            tab: TabExpander::new(DEFAULT_TAB_WIDTH),
             wraps_line: false,
         };
 
@@ -253,7 +254,7 @@ impl<'a> Pane<'a> {
         let lnpw = self.line_number_printing_width();
 
         // replace tabs with spaces
-        let raw_notab = raw.replace('\t', &self.tab);
+        let raw_notab = self.tab.expand(raw);
 
         // trim unicode str considering visual unicode width
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
@@ -313,7 +314,7 @@ impl<'a> Pane<'a> {
         let line_cap_width = self.width_of_text_area();
 
         // replace tabs with spaces
-        let raw_notab = raw.replace('\t', &self.tab);
+        let raw_notab = self.tab.expand(raw);
 
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
 
@@ -726,18 +727,9 @@ impl<'a> Pane<'a> {
         self.set_height(height)
     }
 
-    /// Generate spaces to replace tab
-    fn generate_tab_spaces(tab_width: u16) -> String {
-        let mut spaces = String::new();
-        for _ in 0..tab_width {
-            spaces.push(' ');
-        }
-        spaces
-    }
-
     /// Set tab width.
     pub fn set_tab_width(&mut self, w: u16) {
-        self.tab = Self::generate_tab_spaces(w);
+        self.tab.update_width(w);
     }
 
     /// Set wrap-line option.

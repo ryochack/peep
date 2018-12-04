@@ -15,5 +15,6 @@ pub mod keybind;
 pub mod logger;
 pub mod pane;
 pub mod search;
+pub mod tab;
 pub mod term;
 pub mod unicode_divide;
