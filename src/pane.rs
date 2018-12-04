@@ -408,11 +408,11 @@ impl<'a> Pane<'a> {
         {
             let deco = self.decorate(&line, (buf_range.start + i) as u16);
             let br = BufReader::new(deco.as_bytes());
+            self.numof_semantic_flushed_lines = i as u16 + 1;
             for lline in br.lines() {
                 block.push_str(&format!("{}\n", lline?));
                 n += 1;
                 if n >= pane_height {
-                    self.numof_semantic_flushed_lines = i as u16 + 1;
                     break 'outer;
                 }
             }
@@ -803,6 +803,8 @@ mod tests {
         pane.replace_termsize_getter(sizer);
         let pane_height = 4;
         let _ = pane.set_height(pane_height);
+        // to update numof_semantic_flushed_lines
+        let _ = pane.refresh();
 
         let stride_page = pane_height;
         let stride_hpage = pane_height / 2;
