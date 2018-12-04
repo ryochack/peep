@@ -216,6 +216,32 @@ impl<'a> Pane<'a> {
         hlline
     }
 
+    /// Generate line number string
+    /// | 100 ......
+    /// | 101 ......
+    fn gen_line_number_string(width: usize, line_number: u16) -> String {
+        match width {
+            0...2 => format!("{:>2}", line_number + 1),
+            3 => format!("{:>3}", line_number + 1),
+            4 => format!("{:>4}", line_number + 1),
+            _ => format!("{:>5}", line_number + 1),
+        }
+    }
+
+    /// Generate blank line number string
+    /// | 100 ......
+    /// |    +......
+    /// | 101 ......
+    fn gen_blank_line_number_string(width: usize) -> String {
+        // from the second line
+        match width {
+            0...2 => "  ".to_owned(),
+            3 => "   ".to_owned(),
+            4 => "    ".to_owned(),
+            _ => "     ".to_owned(),
+        }
+    }
+
     /// Decorate line
     ///
     /// | 12+xxxxxxxxxxxxxxxxxxxxxxxxxx+|
@@ -239,7 +265,7 @@ impl<'a> Pane<'a> {
         let hlline;
         let decorated = if self.show_highlight {
             let hl_ranges = self.hl_match_ranges(&raw_notab);
-            hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+            hlline = Self::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
             &hlline
         } else {
             trimed
@@ -247,23 +273,16 @@ impl<'a> Pane<'a> {
 
         // add line number
         let lnum = if self.show_linenumber {
-            match lnpw {
-                0...2 => format!("{:>2}", line_number + 1),
-                3 => format!("{:>3}", line_number + 1),
-                4 => format!("{:>4}", line_number + 1),
-                _ => format!("{:>5}", line_number + 1),
-            }
+            Self::gen_line_number_string(lnpw, line_number)
         } else {
             String::new()
         };
-
         // add extend marks
         let sol = if uc_range.0 > 0 {
             format!("{}", ExtendMark('+'))
         } else {
             " ".to_owned()
         };
-
         // add extend marks
         let eol = if raw_notab.len() > uc_range.1 {
             format!(
@@ -302,6 +321,17 @@ impl<'a> Pane<'a> {
         let mut e = line_cap_width;
 
         let mut wrapped = String::new();
+        let fn_lnum_string = |show_linenumber, width, start_pos, line_number| -> String {
+            if show_linenumber {
+                if start_pos == 0 {
+                    Self::gen_line_number_string(width, line_number)
+                } else {
+                    Self::gen_blank_line_number_string(width)
+                }
+            } else {
+                String::new()
+            }
+        };
 
         while let Some(trimed) = ucdiv.next() {
             let uc_range = ucdiv.last_range();
@@ -310,34 +340,14 @@ impl<'a> Pane<'a> {
             let hlline;
             let decorated = if self.show_highlight {
                 let hl_ranges = self.hl_match_ranges(&raw_notab);
-                hlline = Pane::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+                hlline = Self::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
                 &hlline
             } else {
                 trimed
             };
 
             // add line number
-            let lnum = if self.show_linenumber {
-                if s == 0 {
-                    match lnpw {
-                        0...2 => format!("{:>2}", line_number + 1),
-                        3 => format!("{:>3}", line_number + 1),
-                        4 => format!("{:>4}", line_number + 1),
-                        _ => format!("{:>5}", line_number + 1),
-                    }
-                } else {
-                    // from the second line
-                    match lnpw {
-                        0...2 => "  ".to_owned(),
-                        3 => "   ".to_owned(),
-                        4 => "    ".to_owned(),
-                        _ => "     ".to_owned(),
-                    }
-                }
-            } else {
-                String::new()
-            };
-
+            let lnum = fn_lnum_string(self.show_linenumber, lnpw, s, line_number);
             // add wrap marks
             let sol = if s > 0 {
                 format!("{}", ExtendMark('+'))
@@ -353,35 +363,8 @@ impl<'a> Pane<'a> {
 
         if wrapped.is_empty() {
             // add line number
-            let lnum = if self.show_linenumber {
-                if s == 0 {
-                    match lnpw {
-                        0...2 => format!("{:>2}", line_number + 1),
-                        3 => format!("{:>3}", line_number + 1),
-                        4 => format!("{:>4}", line_number + 1),
-                        _ => format!("{:>5}", line_number + 1),
-                    }
-                } else {
-                    // from the second line
-                    match lnpw {
-                        0...2 => "  ".to_owned(),
-                        3 => "   ".to_owned(),
-                        4 => "    ".to_owned(),
-                        _ => "     ".to_owned(),
-                    }
-                }
-            } else {
-                String::new()
-            };
-
-            // add wrap marks
-            let sol = if s > 0 {
-                format!("{}", ExtendMark('+'))
-            } else {
-                " ".to_owned()
-            };
-
-            wrapped.push_str(&format!("{}{}\n", lnum, sol));
+            let lnum = fn_lnum_string(self.show_linenumber, lnpw, s, line_number);
+            wrapped.push_str(&format!("{}\n", lnum));
         }
 
         wrapped
@@ -600,7 +583,7 @@ impl<'a> Pane<'a> {
 
     /// Return the horizontal offset that is considered pane size and string length
     fn limit_right_x(&self, next_x: u16, max_len: u16) -> io::Result<u16> {
-        let margined_len = max_len + Pane::MARGIN_RIGHT_WIDTH;
+        let margined_len = max_len + Self::MARGIN_RIGHT_WIDTH;
         let pane_width = self.pane_printable_width()?;
         Ok(if pane_width >= margined_len {
             0
@@ -718,7 +701,7 @@ impl<'a> Pane<'a> {
     /// Pane height is limited by the actual terminal height.
     /// Return acutually set pane height.
     pub fn set_height(&mut self, n: u16) -> io::Result<u16> {
-        let max = (*self.termsize_getter)()?.1 - Pane::MESSAGE_BAR_HEIGHT;
+        let max = (*self.termsize_getter)()?.1 - Self::MESSAGE_BAR_HEIGHT;
         self.height = if n == 0 {
             1
         } else if n > max {
@@ -754,7 +737,7 @@ impl<'a> Pane<'a> {
 
     /// Set tab width.
     pub fn set_tab_width(&mut self, w: u16) {
-        self.tab = Pane::generate_tab_spaces(w);
+        self.tab = Self::generate_tab_spaces(w);
     }
 
     /// Set wrap-line option.
