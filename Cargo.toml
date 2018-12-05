@@ -1,6 +1,6 @@
 [package]
 name = "peep"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["ryochack <ryochack@gmail.com>"]
 description = "The CLI text viewer tool that works like `less` command on small pane within the terminal window."
 license = "MIT"
