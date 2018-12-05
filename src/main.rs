@@ -18,43 +18,43 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     println!("{}", opts.usage(&brief));
     println!(
         "Commands on Normal Mode:
-    (num)j         Scroll down
-    (num)k         Scroll up
-    (num)d         Scroll down half page
-    (num)u         Scroll up half page
-    (num)f         Scroll down a page
-    (num)b         Scroll up a page
-    (num)l         Scroll horizontally right
-    (num)h         Scroll horizontally left
-    (num)L         Scroll horizontally right half page
-    (num)H         Scroll horizontally left half page
-    0              Go to the beggining of line
-    $              Go to the end of line
-    g              Go to the beggining of file
-    G              Go to the end of file
-    [num]g [num]G  Go to line [num]
-    /pattern       Search forward in the file for the regex pattern
-    n              Search next
-    N              Search previous
-    q Ctrl-c       Quit
-    (num)+         Increment screen height
-    (num)-         Decrement screen height
-    [num]=         Set screen height to [num]
-    #              Toggle line number printing
-    !              Toggle text wrap
-    ESC            Cancel
-    F              Toggle to follow mode
+    (num)j Ctr-j Ctr-n  Scroll down
+    (num)k Ctr-k Ctr-p  Scroll up
+    (num)d Ctr-d        Scroll down half page
+    (num)u Ctr-u        Scroll up half page
+    (num)f Ctr-f SPACE  Scroll down a page
+    (num)b Ctr-b        Scroll up a page
+    (num)l              Scroll horizontally right
+    (num)h              Scroll horizontally left
+    (num)L              Scroll horizontally right half page
+    (num)H              Scroll horizontally left half page
+    0 Ctr-a             Go to the beggining of line
+    $ Ctr-e             Go to the end of line
+    g                   Go to the beggining of file
+    G                   Go to the end of file
+    [num]g [num]G       Go to line [num]
+    /pattern            Search forward in the file for the regex pattern
+    n                   Search next
+    N                   Search previous
+    q Ctr-c             Quit
+    (num)+              Increment screen height
+    (num)-              Decrement screen height
+    [num]=              Set screen height to [num]
+    #                   Toggle line number printing
+    !                   Toggle line wrapping
+    ESC                 Cancel
+    F                   Toggle to follow mode
 
 Commands on Following Mode:
-    /pattern       Highlight the regex pattern
-    q Ctrl-c       Quit
-    (num)+         Increment screen height
-    (num)-         Decrement screen height
-    [num]=         Set screen height to [num]
-    #              Toggle line number printing
-    !              Toggle text wrap
-    ESC            Cancel
-    F              Toggle to normal mode"
+    /pattern            Highlight the regex pattern
+    q Ctr-c             Quit
+    (num)+              Increment screen height
+    (num)-              Decrement screen height
+    [num]=              Set screen height to [num]
+    #                   Toggle line number printing
+    !                   Toggle line wrapping
+    ESC                 Cancel
+    F                   Toggle to normal mode"
     );
 }
 
