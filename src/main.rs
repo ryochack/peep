@@ -97,7 +97,7 @@ fn run() -> io::Result<()> {
             // not find file name and pipe input
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("Error. Missing filename (\"{} --help\" for help)", prog),
+                format!("missing filename (\"{} --help\" for help)", prog),
             ));
         }
         "-".to_owned()
@@ -119,7 +119,7 @@ fn run() -> io::Result<()> {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("{}", e);
+        eprintln!("Error. {}", e);
         process::exit(1);
     }
 }

@@ -196,7 +196,7 @@ impl App {
                 // stdin is tty. not pipe.
                 return Err(io::Error::new(
                     io::ErrorKind::NotFound,
-                    "Error. No input from stdin",
+                    "no input from stdin",
                 ));
             }
             self.pipereader
@@ -205,15 +205,16 @@ impl App {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
             let mut bufreader = BufReader::new(file);
-            for v in bufreader.lines().map(|v| v.unwrap()) {
+            for line in bufreader.lines() {
                 // +1 is LR length
+                let v = line?;
                 self.seek_pos += v.as_bytes().len() as u64 + 1;
                 self.linebuf.borrow_mut().push(v);
             }
         } else {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("Error. {} is not found", self.file_path),
+                format!("{} is not found", self.file_path),
             ));
         }
         Ok(())
