@@ -384,7 +384,7 @@ impl<'a> Pane<'a> {
         let pane_height = self.pane_size()?.1;
         let buf_range = self.range_of_visible_lines()?;
         let mut block = String::new();
-        let mut n = 0;
+        let mut flushed_line_count = 0;
 
         'outer: for (i, line) in self.linebuf.borrow()[buf_range.start..buf_range.end]
             .iter()
@@ -395,15 +395,15 @@ impl<'a> Pane<'a> {
             self.numof_semantic_flushed_lines = i as u16 + 1;
             for lline in br.lines() {
                 block.push_str(&format!("{}\n", lline?));
-                n += 1;
-                if n >= pane_height {
+                flushed_line_count += 1;
+                if flushed_line_count >= pane_height {
                     break 'outer;
                 }
             }
         }
 
         // move down to message bar position
-        let numof_lines_to_message_bar = pane_height - buf_range.len() as u16;
+        let numof_lines_to_message_bar = pane_height - flushed_line_count as u16;
         if numof_lines_to_message_bar > 0 {
             block.push_str(&format!(
                 "{}",
