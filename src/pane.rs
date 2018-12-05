@@ -503,7 +503,7 @@ impl<'a> Pane<'a> {
         if pane_width == 0 {
             0
         } else {
-            (text.len() / pane_width) as u16 + 1
+            (UnicodeWidthStr::width(text) / pane_width) as u16 + 1
         }
     }
 
@@ -524,7 +524,7 @@ impl<'a> Pane<'a> {
         let mut sum = 0;
         for i in (0..linebuf_height).rev() {
             sum += self.count_wrapped_lines(&self.linebuf.borrow()[i as usize]);
-            if sum >= pane_height {
+            if sum > pane_height {
                 return Ok(if i == linebuf_height {
                     linebuf_height
                 } else {
