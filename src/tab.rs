@@ -2,51 +2,40 @@
 
 use unicode_width::UnicodeWidthChar;
 
-pub struct TabExpander {
-    tab: String,
+const TAB_SPACE: &str = "                                ";
+
+pub trait TabExpand {
+    fn expand_tab(&self, tab_width: usize) -> String;
 }
 
-impl TabExpander {
-    fn generate_continuous_spaces(width: u16) -> String {
-        let mut spaces = String::new();
-        for _ in 0..width {
-            spaces.push(' ');
-        }
-        spaces
-    }
+impl TabExpand for str {
+    fn expand_tab(&self, tab_width: usize) -> String {
+        let tab_width = if tab_width > TAB_SPACE.len() {
+            TAB_SPACE.len()
+        } else {
+            tab_width
+        };
 
-    pub fn new(tab_width: u16) -> Self {
-        Self {
-            tab: Self::generate_continuous_spaces(tab_width),
-        }
-    }
-
-    pub fn update_width(&mut self, tab_width: u16) {
-        self.tab = Self::generate_continuous_spaces(tab_width);
-    }
-
-    /// Replace TAB with spaces with considering TAB position
-    pub fn expand(&self, from: &str) -> String {
-        let mut to = String::new();
+        let mut expanded_str = String::new();
         let mut expand_width = 0;
 
-        for c in from.chars() {
+        for c in self.chars() {
             expand_width += if c == '\t' {
-                if self.tab.len() > 0 {
-                    let frac = self.tab.len() - (expand_width % self.tab.len());
-                    to.push_str(&self.tab[0..frac]);
+                if tab_width > 0 {
+                    let frac = tab_width - (expand_width % tab_width);
+                    expanded_str.push_str(&TAB_SPACE[0..frac]);
                     frac
                 } else {
                     0
                 }
             } else {
                 c.width_cjk().map_or(0, |w| {
-                    to.push(c);
+                    expanded_str.push(c);
                     w
                 })
             }
         }
-        to
+        expanded_str
     }
 }
 
@@ -56,7 +45,6 @@ mod tests {
 
     #[test]
     fn test_tab() {
-        let tab = TabExpander::new(4);
         let data = [
             ("\t56789", "    56789"),
             ("1\t56789", "1   56789"),
@@ -75,7 +63,7 @@ mod tests {
             ("123\t5\t9", "123 5   9"),
         ];
         for d in data.iter() {
-            assert_eq!(tab.expand(d.0), d.1);
+            assert_eq!(d.0.expand_tab(4), d.1);
         }
     }
 }

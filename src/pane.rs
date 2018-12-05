@@ -8,13 +8,13 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::io::{Seek, SeekFrom};
 use std::ops;
 use std::rc::Rc;
-use tab::TabExpander;
+use tab::TabExpand;
 use termion;
 use unicode_divide::UnicodeStrDivider;
 use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
-const DEFAULT_TAB_WIDTH: u16 = 4;
+const DEFAULT_TAB_WIDTH: usize = 4;
 
 use std::fmt;
 pub struct ExtendMark(pub char);
@@ -43,7 +43,7 @@ pub struct Pane<'a> {
     hlsearcher: Rc<RefCell<Search>>,
     message: String,
     termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
-    tab: TabExpander,
+    tab_width: usize,
     wraps_line: bool,
 }
 
@@ -85,7 +85,7 @@ impl<'a> Pane<'a> {
             } else {
                 Box::new(termion::terminal_size)
             },
-            tab: TabExpander::new(DEFAULT_TAB_WIDTH),
+            tab_width: DEFAULT_TAB_WIDTH,
             wraps_line: false,
         };
 
@@ -254,7 +254,7 @@ impl<'a> Pane<'a> {
         let lnpw = self.line_number_printing_width();
 
         // replace tabs with spaces
-        let raw_notab = self.tab.expand(raw);
+        let raw_notab = raw.expand_tab(self.tab_width);
 
         // trim unicode str considering visual unicode width
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
@@ -314,7 +314,7 @@ impl<'a> Pane<'a> {
         let line_cap_width = self.width_of_text_area();
 
         // replace tabs with spaces
-        let raw_notab = self.tab.expand(raw);
+        let raw_notab = raw.expand_tab(self.tab_width);
 
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
 
@@ -729,7 +729,7 @@ impl<'a> Pane<'a> {
 
     /// Set tab width.
     pub fn set_tab_width(&mut self, w: u16) {
-        self.tab.update_width(w);
+        self.tab_width = w as usize;
     }
 
     /// Set wrap-line option.
