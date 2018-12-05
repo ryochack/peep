@@ -9,6 +9,13 @@ pub mod default {
     use super::*;
     use std::collections::HashMap;
 
+    const ALLOWED_CTRL_KEYCODES: [char; 10] = [
+        /* Ctr-a = */ '\x01', /* Ctr-b = */ '\x02', /* Ctr-d = */ '\x04',
+        /* Ctr-e = */ '\x05', /* Ctr-f = */ '\x06', /* Ctr-j = */ '\x0a',
+        /* Ctr-k = */ '\x0b', /* Ctr-n = */ '\x0e', /* Ctr-p = */ '\x10',
+        /* Ctr-u = */ '\x15',
+    ];
+
     // Ready -> IncSearching
     // IncSearching -> Ready
     //
@@ -54,17 +61,28 @@ pub mod default {
             // let mut default: HashMap<&str, PeepEvent> = [
             [
                 ("j", PeepEvent::MoveDown(1)),
+                (/* Ctr-j */ "\x0a", PeepEvent::MoveDown(1)),
+                (/* Ctr-n */ "\x0e", PeepEvent::MoveDown(1)),
                 ("k", PeepEvent::MoveUp(1)),
+                (/* Ctr-k */ "\x0b", PeepEvent::MoveUp(1)),
+                (/* Ctr-p */ "\x10", PeepEvent::MoveUp(1)),
                 ("h", PeepEvent::MoveLeft(1)),
                 ("l", PeepEvent::MoveRight(1)),
                 ("d", PeepEvent::MoveDownHalfPages(1)),
+                (/* Ctr-d */ "\x04", PeepEvent::MoveDownHalfPages(1)),
                 ("u", PeepEvent::MoveUpHalfPages(1)),
+                (/* Ctr-u */ "\x15", PeepEvent::MoveUpHalfPages(1)),
                 ("H", PeepEvent::MoveLeftHalfPages(1)),
                 ("L", PeepEvent::MoveRightHalfPages(1)),
                 ("f", PeepEvent::MoveDownPages(1)),
+                (/* Ctr-f */ "\x06", PeepEvent::MoveDownPages(1)),
+                (" ", PeepEvent::MoveDownPages(1)),
                 ("b", PeepEvent::MoveUpPages(1)),
+                (/* Ctr-b */ "\x02", PeepEvent::MoveUpPages(1)),
                 ("0", PeepEvent::MoveToHeadOfLine),
+                (/* Ctrl-a */ "\x01", PeepEvent::MoveToHeadOfLine),
                 ("$", PeepEvent::MoveToEndOfLine),
+                (/* Ctrl-e */ "\x05", PeepEvent::MoveToEndOfLine),
                 ("g", PeepEvent::MoveToTopOfLines),
                 ("G", PeepEvent::MoveToBottomOfLines),
                 ("#", PeepEvent::ToggleLineNumberPrinting),
@@ -113,7 +131,7 @@ pub mod default {
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
-                c if !c.is_control() => {
+                c if !c.is_control() | ALLOWED_CTRL_KEYCODES.contains(&c) => {
                     self.trans_to_commanding();
                     self.action_commanding(c)
                 }
@@ -122,6 +140,7 @@ pub mod default {
                 _ => None,
             }
         }
+
         fn action_incsearching(&mut self, c: char) -> Option<PeepEvent> {
             match c {
                 c if !c.is_control() => {
@@ -150,6 +169,7 @@ pub mod default {
                 _ => None,
             }
         }
+
         fn action_numbering(&mut self, c: char) -> Option<PeepEvent> {
             match c {
                 '0'...'9' => {
@@ -170,10 +190,11 @@ pub mod default {
                 _ => None,
             }
         }
+
         fn action_commanding(&mut self, c: char) -> Option<PeepEvent> {
             let mut needs_trans = false;
             let op = match c {
-                c if !c.is_control() => {
+                c if !c.is_control() | ALLOWED_CTRL_KEYCODES.contains(&c) => {
                     self.wip_keys.push(c);
                     match self.cmap.get::<str>(&self.wip_keys) {
                         Some(v) => {
@@ -281,15 +302,26 @@ mod tests {
 
         // normal commands
         assert_eq!(kb.parse('j'), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse('\x0a'), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse('\x0e'), Some(PeepEvent::MoveDown(1)));
         assert_eq!(kb.parse('k'), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse('\x0b'), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse('\x10'), Some(PeepEvent::MoveUp(1)));
         assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(1)));
         assert_eq!(kb.parse('l'), Some(PeepEvent::MoveRight(1)));
         assert_eq!(kb.parse('d'), Some(PeepEvent::MoveDownHalfPages(1)));
+        assert_eq!(kb.parse('\x04'), Some(PeepEvent::MoveDownHalfPages(1)));
         assert_eq!(kb.parse('u'), Some(PeepEvent::MoveUpHalfPages(1)));
+        assert_eq!(kb.parse('\x15'), Some(PeepEvent::MoveUpHalfPages(1)));
         assert_eq!(kb.parse('f'), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse('\x06'), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse(' '), Some(PeepEvent::MoveDownPages(1)));
         assert_eq!(kb.parse('b'), Some(PeepEvent::MoveUpPages(1)));
+        assert_eq!(kb.parse('\x02'), Some(PeepEvent::MoveUpPages(1)));
         assert_eq!(kb.parse('0'), Some(PeepEvent::MoveToHeadOfLine));
+        assert_eq!(kb.parse('\x01'), Some(PeepEvent::MoveToHeadOfLine));
         assert_eq!(kb.parse('$'), Some(PeepEvent::MoveToEndOfLine));
+        assert_eq!(kb.parse('\x05'), Some(PeepEvent::MoveToEndOfLine));
         assert_eq!(kb.parse('g'), Some(PeepEvent::MoveToTopOfLines));
         assert_eq!(kb.parse('G'), Some(PeepEvent::MoveToBottomOfLines));
         assert_eq!(kb.parse('-'), Some(PeepEvent::DecrementLines(1)));
