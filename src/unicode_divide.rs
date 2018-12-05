@@ -69,16 +69,14 @@ impl<'a> Iterator for UnicodeStrDivider<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= self.inner.len() {
             None
+        } else if let Some(end) = unicode_index_of_width(&self.inner[self.pos..], self.width) {
+            let start = self.pos;
+            let end = start + end;
+            self.prev_pos = self.pos;
+            self.pos = end;
+            Some(&self.inner[start..end])
         } else {
-            if let Some(end) = unicode_index_of_width(&self.inner[self.pos..], self.width) {
-                let start = self.pos;
-                let end = start + end;
-                self.prev_pos = self.pos;
-                self.pos = end;
-                Some(&self.inner[start..end])
-            } else {
-                None
-            }
+            None
         }
     }
 }

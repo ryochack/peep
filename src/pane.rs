@@ -258,7 +258,7 @@ impl<'a> Pane<'a> {
 
         // trim unicode str considering visual unicode width
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
-        let _ = ucdiv.seek(SeekFrom::Start(self.cur_pos.0 as u64));
+        let _ = ucdiv.seek(SeekFrom::Start(u64::from(self.cur_pos.0)));
         let trimed = ucdiv.next().unwrap_or("");
         let uc_range = ucdiv.last_range();
 
@@ -532,7 +532,7 @@ impl<'a> Pane<'a> {
                 });
             }
         }
-        return Ok(0);
+        Ok(0)
     }
 
     /// Return text area width.

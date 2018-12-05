@@ -6,17 +6,52 @@ use termios;
 // re-export
 pub use termios::{
     // c_iflag
-    IGNBRK, BRKINT, IGNPAR, PARMRK, INPCK, ISTRIP,
-    INLCR, IGNCR, ICRNL, IXON, IXANY, IXOFF,
-    // c_oflag
-    OPOST, ONLCR, OCRNL, ONOCR, ONLRET,
+    BRKINT,
+    ICRNL,
+    IGNBRK,
+    IGNCR,
+    IGNPAR,
+    INLCR,
+    INPCK,
+    ISTRIP,
+    IXANY,
+    IXOFF,
+    IXON,
+    PARMRK,
+};
+pub use termios::{
     // c_cflag
-    CSIZE, CS5, CS6, CS7, CS8,
-    CSTOPB, CREAD, PARENB, PARODD,
-    HUPCL, CLOCAL,
+    CLOCAL,
+    CREAD,
+    CS5,
+    CS6,
+    CS7,
+    CS8,
+    CSIZE,
+    CSTOPB,
+    HUPCL,
+    PARENB,
+    PARODD,
+};
+pub use termios::{
     // c_lflag
-    ISIG, ICANON, ECHO, ECHOE, ECHOK, ECHONL,
-    IEXTEN, NOFLSH, TOSTOP,
+    ECHO,
+    ECHOE,
+    ECHOK,
+    ECHONL,
+    ICANON,
+    IEXTEN,
+    ISIG,
+    NOFLSH,
+    TOSTOP,
+};
+pub use termios::{
+    // c_oflag
+    OCRNL,
+    ONLCR,
+    ONLRET,
+    ONOCR,
+    OPOST,
 };
 
 pub struct TermAttrSetter {
