@@ -39,6 +39,8 @@ cargo install peep
 
 If you don't have Rust toolchains, please refer to [The Rust Programming Language](https://www.rust-lang.org/).
 
+Or, you can download peep binary file from [GitHub peep Releases](https://github.com/ryochack/peep/releases) :)
+
 # Usage
 ```shell
 peep [OPTION]... [FILE]
