@@ -28,6 +28,9 @@ Also, peep can switch between the normal mode and follow mode with `F` command.
 peep can highlight the regex word on the follow mode.
 
 ![Highlighting on Follow Mode](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_follow_hl.gif)
+## Text Line Wrapping
+
+![Text Line Wrapping](https://raw.githubusercontent.com/wiki/ryochack/peep/images/demo_wrapping.gif)
 
 # Installation
 ```shell
