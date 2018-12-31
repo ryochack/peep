@@ -1,22 +1,24 @@
 //! Pane module
 
-use csi::cursor_ext;
-use search::{NullSearcher, Search};
+use crate::{
+    csi::cursor_ext,
+    search::{NullSearcher, Search},
+    tab::TabExpand,
+    unicode_divide::UnicodeStrDivider,
+};
 use std::cell::RefCell;
 use std::cmp;
+use std::fmt;
 use std::io::{self, BufRead, BufReader, Write};
 use std::io::{Seek, SeekFrom};
 use std::ops;
 use std::rc::Rc;
-use tab::TabExpand;
 use termion;
-use unicode_divide::UnicodeStrDivider;
 use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
 const DEFAULT_TAB_WIDTH: usize = 4;
 
-use std::fmt;
 pub struct ExtendMark(pub char);
 impl fmt::Display for ExtendMark {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -439,7 +441,8 @@ impl<'a> Pane<'a> {
             "{}{}",
             cursor_ext::HorizontalAbsolute(1),
             termion::clear::CurrentLine
-        ).unwrap();
+        )
+        .unwrap();
         self.flush();
     }
 
@@ -483,7 +486,8 @@ impl<'a> Pane<'a> {
                 self.writer.borrow_mut(),
                 "{}",
                 cursor_ext::PreviousLine(self.numof_flushed_lines)
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 
@@ -575,11 +579,12 @@ impl<'a> Pane<'a> {
 
     /// Return the pane printable width
     fn pane_printable_width(&self) -> io::Result<u16> {
-        Ok(self.pane_size()?.0 - if self.show_linenumber {
-            self.line_number_printing_width() as u16
-        } else {
-            0
-        })
+        Ok(self.pane_size()?.0
+            - if self.show_linenumber {
+                self.line_number_printing_width() as u16
+            } else {
+                0
+            })
     }
 
     /// Return the horizontal offset that is considered pane size and string length

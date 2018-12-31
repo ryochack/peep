@@ -49,7 +49,8 @@ fn unicode_index_of_width(unicode_str: &str, visual_width: usize) -> Option<usiz
                 }
                 Some(i)
             }
-        }).last()
+        })
+        .last()
     {
         let end = if interrupted {
             end
@@ -84,28 +85,28 @@ impl<'a> Iterator for UnicodeStrDivider<'a> {
 impl<'a> Seek for UnicodeStrDivider<'a> {
     fn seek(&mut self, sf: SeekFrom) -> io::Result<u64> {
         match sf {
-            SeekFrom::Start(n) => Ok(if let Some(dist) =
-                unicode_index_of_width(self.inner, n as usize)
-            {
-                self.pos = dist;
-                self.prev_pos = self.pos;
-                dist as u64
-            } else {
-                0u64
-            }),
+            SeekFrom::Start(n) => Ok(
+                if let Some(dist) = unicode_index_of_width(self.inner, n as usize) {
+                    self.pos = dist;
+                    self.prev_pos = self.pos;
+                    dist as u64
+                } else {
+                    0u64
+                },
+            ),
             SeekFrom::End(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "SeekFrom::End is not supported",
             )),
-            SeekFrom::Current(n) => Ok(if let Some(dist) =
-                unicode_index_of_width(&self.inner[self.pos..], n as usize)
-            {
-                self.pos += dist;
-                self.prev_pos = self.pos;
-                dist as u64
-            } else {
-                0u64
-            }),
+            SeekFrom::Current(n) => Ok(
+                if let Some(dist) = unicode_index_of_width(&self.inner[self.pos..], n as usize) {
+                    self.pos += dist;
+                    self.prev_pos = self.pos;
+                    dist as u64
+                } else {
+                    0u64
+                },
+            ),
         }
     }
 }

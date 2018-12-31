@@ -1,12 +1,8 @@
-extern crate getopts;
-extern crate termion;
-
 use getopts::Options;
 use std::env;
 use std::io;
 use std::process;
 
-extern crate peep;
 use peep::app::App;
 
 fn print_usage(prog: &str, version: &str, opts: &Options) {

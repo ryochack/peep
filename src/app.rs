@@ -1,6 +1,3 @@
-extern crate ctrlc;
-extern crate termion;
-
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
@@ -9,12 +6,14 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::thread::spawn;
 
-use event::PeepEvent;
-use filewatch::{self, FileWatch};
-use keybind;
-use pane::{Pane, ScrollStep};
-use search;
-use term::{self, Block};
+use crate::{
+    event::PeepEvent,
+    filewatch::{self, FileWatch},
+    keybind,
+    pane::{Pane, ScrollStep},
+    search,
+    term::{self, Block},
+};
 
 const DEFAULT_PANE_HEIGHT: u16 = 10;
 const DEFAULT_TAB_WIDTH: u16 = 4;
@@ -204,7 +203,7 @@ impl App {
         } else if let Ok(mut file) = File::open(&self.file_path) {
             // read from file
             self.seek_pos = file.seek(SeekFrom::Start(self.seek_pos))?;
-            let mut bufreader = BufReader::new(file);
+            let bufreader = BufReader::new(file);
             for line in bufreader.lines() {
                 // +1 is LR length
                 let v = line?;
@@ -234,7 +233,8 @@ impl App {
         ctrlc::set_handler(move || {
             // receive SIGINT
             sig_sender.send(PeepEvent::Quit).unwrap();
-        }).expect("Error setting ctrl-c handler");
+        })
+        .expect("Error setting ctrl-c handler");
 
         self.searcher = Rc::new(RefCell::new(search::RegexSearcher::new("")));
 

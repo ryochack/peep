@@ -1,5 +1,5 @@
 /// Key Bind Parser
-use event::PeepEvent;
+use crate::event::PeepEvent;
 
 pub trait KeyParser {
     fn parse(&mut self, c: char) -> Option<PeepEvent>;
@@ -95,9 +95,9 @@ pub mod default {
                 ("q", PeepEvent::Quit),
                 ("F", PeepEvent::FollowMode),
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         }
 
         fn trans_to_ready(&mut self) {

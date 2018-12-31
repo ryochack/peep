@@ -1,4 +1,4 @@
-use event::PeepEvent;
+use crate::event::PeepEvent;
 use std::io;
 use std::os::unix::io::AsRawFd;
 use std::sync::mpsc;
