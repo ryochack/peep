@@ -294,7 +294,7 @@ pub mod default {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use event::PeepEvent;
+    use crate::event::PeepEvent;
 
     #[test]
     fn test_keybind_command() {
