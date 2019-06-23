@@ -39,8 +39,7 @@ pub struct Pane<'a> {
     height: u16,
     numof_flushed_lines: u16,
     numof_semantic_flushed_lines: u16,
-    // cur_pos: (x, y)
-    cur_pos: (u16, u16),
+    cur_pos: (u16, u16), // (x, y)
     show_linenumber: bool,
     show_highlight: bool,
     hlsearcher: Rc<RefCell<Search>>,
@@ -102,12 +101,12 @@ impl<'a> Pane<'a> {
     const MESSAGE_BAR_HEIGHT: u16 = 1;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
-        let mut pane = Self {
+        Self {
             linebuf: Rc::new(RefCell::new(Vec::new())),
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
-            numof_flushed_lines: DEFAULT_PANE_HEIGHT,
-            numof_semantic_flushed_lines: DEFAULT_PANE_HEIGHT,
+            numof_flushed_lines: 0,
+            numof_semantic_flushed_lines: 0,
             cur_pos: (0, 0),
             show_linenumber: false,
             show_highlight: false,
@@ -116,20 +115,7 @@ impl<'a> Pane<'a> {
             tab_width: DEFAULT_TAB_WIDTH,
             wraps_line: false,
             term: Box::new(Terminal::new()),
-        };
-
-        // sweep pane area at first.
-
-        // limit pane height if terminal height is less than pane height.
-        pane.set_height(DEFAULT_PANE_HEIGHT)
-            .expect("terminal_size get error");
-        pane.numof_flushed_lines = pane.height;
-        pane.numof_semantic_flushed_lines = pane.height;
-
-        pane.sweep(pane.height);
-        pane.move_to_message_line();
-        pane.flush();
-        pane
+        }
     }
 
     pub fn is_stdout_tty(&self) -> bool {
@@ -152,20 +138,21 @@ impl<'a> Pane<'a> {
         self.writer.borrow_mut().flush().unwrap();
     }
 
-    fn sweep(&self, n: u16) {
+    // sweep lines
+    fn sweep(&self, nlines: u16) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
-        for _ in 0..n {
-            s.push_str(&format!("{}\n", termion::clear::CurrentLine));
+        for _ in 0..nlines {
+            s.push_str(&format!("{}\nlines", termion::clear::CurrentLine));
         }
-        if n > 0 {
+        if nlines > 0 {
             s.push_str(&format!(
                 "{}{}",
                 termion::clear::CurrentLine,
-                cursor_ext::PreviousLine(n)
+                cursor_ext::PreviousLine(nlines)
             ));
         } else {
-            // n == 0
+            // nlines == 0
             s.push_str(&format!("{}", termion::clear::CurrentLine));
         }
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
@@ -508,11 +495,6 @@ impl<'a> Pane<'a> {
         }
     }
 
-    fn move_to_message_line(&self) {
-        let ph = self.pane_size().unwrap_or((1, 1)).1;
-        write!(self.writer.borrow_mut(), "{}", cursor_ext::NextLine(ph)).unwrap();
-    }
-
     fn return_home(&self) {
         if self.numof_flushed_lines > 0 {
             write!(
@@ -526,7 +508,9 @@ impl<'a> Pane<'a> {
 
     /// Return pane size (width, height)
     pub fn pane_size(&self) -> io::Result<(u16, u16)> {
-        (*self.term).size().map(|(tw, th)| (tw, cmp::min(th, self.height)))
+        (*self.term)
+            .size()
+            .map(|(tw, th)| (tw, cmp::min(th, self.height)))
     }
 
     /// Return (x, y)
@@ -799,10 +783,7 @@ mod tests {
 
     impl TestTerminal {
         fn new(width: u16, height: u16) -> Self {
-            Self {
-                width,
-                height
-            }
+            Self { width, height }
         }
     }
 
