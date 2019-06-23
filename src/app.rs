@@ -252,7 +252,7 @@ impl App {
 
         // if stdout points pipe or redirect,
         // peep exits immediately upon output.
-        if !Pane::is_stdout_tty() {
+        if !pane.is_stdout_tty() {
             return Ok(());
         }
 

@@ -45,9 +45,39 @@ pub struct Pane<'a> {
     show_highlight: bool,
     hlsearcher: Rc<RefCell<Search>>,
     message: String,
-    termsize_getter: Box<Fn() -> io::Result<(u16, u16)>>,
     tab_width: usize,
     wraps_line: bool,
+    term: Box<TermStat>,
+}
+
+trait TermStat {
+    fn size(&self) -> io::Result<(u16, u16)>;
+    fn is_tty(&self) -> bool;
+}
+
+pub struct Terminal {
+    is_stdout_tty: bool,
+}
+
+impl Terminal {
+    fn new() -> Self {
+        Self {
+            is_stdout_tty: termion::is_tty(&io::stdout()),
+        }
+    }
+}
+
+impl TermStat for Terminal {
+    fn size(&self) -> io::Result<(u16, u16)> {
+        if self.is_stdout_tty {
+            termion::terminal_size()
+        } else {
+            term::dev_tty_size()
+        }
+    }
+    fn is_tty(&self) -> bool {
+        self.is_stdout_tty
+    }
 }
 
 #[derive(Debug)]
@@ -72,7 +102,7 @@ impl<'a> Pane<'a> {
     const MESSAGE_BAR_HEIGHT: u16 = 1;
 
     pub fn new<W: 'a + Write>(w: Box<RefCell<W>>) -> Self {
-        let mut pane = Pane {
+        let mut pane = Self {
             linebuf: Rc::new(RefCell::new(Vec::new())),
             writer: w,
             height: DEFAULT_PANE_HEIGHT,
@@ -83,14 +113,12 @@ impl<'a> Pane<'a> {
             show_highlight: false,
             hlsearcher: Rc::new(RefCell::new(NullSearcher::new())),
             message: "".to_owned(),
-            termsize_getter: if cfg!(test) {
-                Box::new(move || Ok((10, 10)))
-            } else {
-                Box::new(Self::get_terminal_size)
-            },
             tab_width: DEFAULT_TAB_WIDTH,
             wraps_line: false,
+            term: Box::new(Terminal::new()),
         };
+
+        // sweep pane area at first.
 
         // limit pane height if terminal height is less than pane height.
         pane.set_height(DEFAULT_PANE_HEIGHT)
@@ -104,21 +132,13 @@ impl<'a> Pane<'a> {
         pane
     }
 
-    pub fn is_stdout_tty() -> bool {
-        termion::is_tty(&io::stdout())
-    }
-
-    fn get_terminal_size() -> io::Result<(u16, u16)> {
-        if termion::is_tty(&io::stdout()) {
-            termion::terminal_size()
-        } else {
-            term::dev_tty_size()
-        }
+    pub fn is_stdout_tty(&self) -> bool {
+        self.term.is_tty()
     }
 
     #[cfg(test)]
-    fn replace_termsize_getter(&mut self, getter: Box<Fn() -> io::Result<(u16, u16)>>) {
-        self.termsize_getter = getter;
+    fn replace_termsize_getter(&mut self, getter: Box<TermStat>) {
+        self.term = getter;
     }
 
     /// Load text buffer and reset position.
@@ -506,7 +526,7 @@ impl<'a> Pane<'a> {
 
     /// Return pane size (width, height)
     pub fn pane_size(&self) -> io::Result<(u16, u16)> {
-        (*self.termsize_getter)().map(|(tw, th)| (tw, cmp::min(th, self.height)))
+        (*self.term).size().map(|(tw, th)| (tw, cmp::min(th, self.height)))
     }
 
     /// Return (x, y)
@@ -720,7 +740,7 @@ impl<'a> Pane<'a> {
     /// Pane height is limited by the actual terminal height.
     /// Return acutually set pane height.
     pub fn set_height(&mut self, n: u16) -> io::Result<u16> {
-        let max = (*self.termsize_getter)()?.1 - Self::MESSAGE_BAR_HEIGHT;
+        let max = (*self.term).size()?.1 - Self::MESSAGE_BAR_HEIGHT;
         self.height = if n == 0 {
             1
         } else if n > max {
@@ -772,6 +792,29 @@ mod tests {
         }};
     }
 
+    struct TestTerminal {
+        width: u16,
+        height: u16,
+    }
+
+    impl TestTerminal {
+        fn new(width: u16, height: u16) -> Self {
+            Self {
+                width,
+                height
+            }
+        }
+    }
+
+    impl TermStat for TestTerminal {
+        fn size(&self) -> io::Result<(u16, u16)> {
+            Ok((self.width, self.height))
+        }
+        fn is_tty(&self) -> bool {
+            true
+        }
+    }
+
     fn gen_texts(s: &[&str]) -> Rc<RefCell<Vec<String>>> {
         let mut v: Vec<String> = vec![];
         for t in s.iter() {
@@ -780,20 +823,17 @@ mod tests {
         Rc::new(RefCell::new(v))
     }
 
-    fn gen_sizer(w: u16, h: u16) -> ((u16, u16), Box<Fn() -> io::Result<(u16, u16)>>) {
-        ((w, h), Box::new(move || Ok((w, h))))
-    }
-
     #[test]
     fn test_scroll_up_down() {
         let t = [
             "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
-        let (_, sizer) = gen_sizer(2, 5);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 5;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
         let pane_height = 4;
         let _ = pane.set_height(pane_height);
         // to update numof_semantic_flushed_lines
@@ -871,13 +911,14 @@ mod tests {
     fn test_scroll_left_right() {
         let t = ["1234567890123456789012345678901234567890"];
         let texts = gen_texts(&t);
-        let (size, sizer) = gen_sizer(4, 2);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 4;
+        let height: u16 = 2;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
-        let stride_page = size.0;
-        let stride_hpage = size.0 / 2;
+        let stride_page = width;
+        let stride_hpage = width / 2;
 
         // in range
         {
@@ -933,12 +974,12 @@ mod tests {
             // need to consider right margin
             assert_eq!(
                 pane.scroll_right(&ScrollStep::Page(10)).unwrap(),
-                texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH
+                texts.borrow()[0].len() as u16 - width + Pane::MARGIN_RIGHT_WIDTH
             );
             assert_eq!(
                 pane.position(),
                 (
-                    texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH,
+                    texts.borrow()[0].len() as u16 - width + Pane::MARGIN_RIGHT_WIDTH,
                     0
                 )
             );
@@ -962,10 +1003,11 @@ mod tests {
             "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         ];
         let texts = gen_texts(&t);
-        let (_, sizer) = gen_sizer(2, 5);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 5;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
         let pane_height = 4;
         let _ = pane.set_height(pane_height);
 
@@ -994,11 +1036,12 @@ mod tests {
         assert_eq!(pane.position(), (0, texts.borrow().len() as u16 - 1));
 
         // case: buffer height is less than pane height
-        let (_, sizer) = gen_sizer(2, 10);
         let t = ["", "", "", ""];
         let texts = gen_texts(&t);
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 10;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
         let pane_height = 8;
         let _ = pane.set_height(pane_height);
         assert_eq!(pane.goto_bottom_of_lines().unwrap(), (0, 0));
@@ -1014,17 +1057,18 @@ mod tests {
     fn test_goto_horizontal_line() {
         let t = ["1234567890123456789012345678901234567890"];
         let texts = gen_texts(&t);
-        let (size, sizer) = gen_sizer(4, 2);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 4;
+        let height: u16 = 2;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
         pane.scroll_right(&ScrollStep::Char(1)).unwrap();
         assert_eq!(pane.goto_head_of_line().unwrap(), (0, 0));
         assert_eq!(
             pane.goto_tail_of_line().unwrap(),
             (
-                texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH,
+                texts.borrow()[0].len() as u16 - width + Pane::MARGIN_RIGHT_WIDTH,
                 0
             )
         );
@@ -1035,35 +1079,36 @@ mod tests {
         assert_eq!(pane.position(), (0, 0));
         assert_eq!(
             pane.goto_absolute_horizontal_offset(100).unwrap(),
-            texts.borrow()[0].len() as u16 - size.0 + Pane::MARGIN_RIGHT_WIDTH
+            texts.borrow()[0].len() as u16 - width + Pane::MARGIN_RIGHT_WIDTH
         );
     }
 
     #[test]
     fn test_set_height() {
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
-        let (size, sizer) = gen_sizer(1, 10);
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 1;
+        let height: u16 = 10;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
         assert_eq!(pane.pane_size().unwrap(), (1, 5));
         assert_eq!(pane.set_height(0).unwrap(), 1);
         assert_eq!(pane.pane_size().unwrap(), (1, 1));
         assert_eq!(
-            pane.set_height(size.1).unwrap(),
-            size.1 - Pane::MESSAGE_BAR_HEIGHT
+            pane.set_height(height).unwrap(),
+            height - Pane::MESSAGE_BAR_HEIGHT
         );
         assert_eq!(
             pane.pane_size().unwrap(),
-            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+            (1, height - Pane::MESSAGE_BAR_HEIGHT)
         );
         assert_eq!(
-            pane.set_height(size.1 + 1).unwrap(),
-            size.1 - Pane::MESSAGE_BAR_HEIGHT
+            pane.set_height(height + 1).unwrap(),
+            height - Pane::MESSAGE_BAR_HEIGHT
         );
         assert_eq!(
             pane.pane_size().unwrap(),
-            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+            (1, height - Pane::MESSAGE_BAR_HEIGHT)
         );
 
         assert_eq!(pane.set_height(5).unwrap(), 5);
@@ -1083,11 +1128,11 @@ mod tests {
         assert_eq!(pane.pane_size().unwrap(), (1, 9));
         assert_eq!(
             pane.increment_height(100).unwrap(),
-            size.1 - Pane::MESSAGE_BAR_HEIGHT
+            height - Pane::MESSAGE_BAR_HEIGHT
         );
         assert_eq!(
             pane.pane_size().unwrap(),
-            (1, size.1 - Pane::MESSAGE_BAR_HEIGHT)
+            (1, height - Pane::MESSAGE_BAR_HEIGHT)
         );
     }
 
@@ -1128,8 +1173,9 @@ mod tests {
         let atxt = gen_texts(&a);
         let btxt = gen_texts(&b);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
-        let (_, sizer) = gen_sizer(2, 5);
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 5;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
         pane.load(atxt.clone());
         assert_eq!(pane.position(), (0, 0));
@@ -1158,10 +1204,11 @@ mod tests {
         ];
         let nbuflines = t.len() as u16;
         let texts = gen_texts(&t);
-        let (_, sizer) = gen_sizer(2, 10);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 10;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
         assert_eq!(pane.set_height(1).unwrap(), 1);
         assert_eq!(pane.limit_bottom_y().unwrap(), nbuflines - 1);
@@ -1176,10 +1223,11 @@ mod tests {
         ];
         let nbuflines = t.len() as u16;
         let texts = gen_texts(&t);
-        let (_, sizer) = gen_sizer(2, 10);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.load(texts.clone());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 2;
+        let height: u16 = 10;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
         assert_eq!(pane.set_height(5).unwrap(), 5);
 
         assert_eq!(pane.goto_absolute_line(0).unwrap(), 0);
@@ -1198,9 +1246,10 @@ mod tests {
 
     #[test]
     fn test_limit_right_x() {
-        let (size, sizer) = gen_sizer(20, 0);
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
-        pane.replace_termsize_getter(sizer);
+        let width: u16 = 20;
+        let height: u16 = 0;
+        pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
 
         let max_text_length = 10;
         assert_eq!(pane.limit_right_x(0, max_text_length).unwrap(), 0);
@@ -1213,7 +1262,7 @@ mod tests {
         assert_eq!(
             pane.limit_right_x(40, max_text_length).unwrap(),
             // remain 10
-            max_text_length - size.0 + Pane::MARGIN_RIGHT_WIDTH
+            max_text_length - width + Pane::MARGIN_RIGHT_WIDTH
         );
     }
 }
