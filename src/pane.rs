@@ -104,6 +104,10 @@ impl<'a> Pane<'a> {
         pane
     }
 
+    pub fn is_stdout_tty() -> bool {
+        termion::is_tty(&io::stdout())
+    }
+
     fn get_terminal_size() -> io::Result<(u16, u16)> {
         if termion::is_tty(&io::stdout()) {
             termion::terminal_size()

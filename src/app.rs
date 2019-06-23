@@ -75,7 +75,6 @@ impl PipeReader {
 
     /// Read from pipe input.
     fn read(&mut self, linebuf: &mut Vec<String>, timeout_ms: u64) -> io::Result<()> {
-        use std::os::unix::io::AsRawFd;
         use std::time::Duration;
 
         const INBUF_SIZE: usize = 8192;
@@ -250,6 +249,12 @@ impl App {
         }
         pane.set_message(self.mode_default_message());
         pane.refresh()?;
+
+        // if stdout points pipe or redirect,
+        // peep exits immediately upon output.
+        if !Pane::is_stdout_tty() {
+            return Ok(());
+        }
 
         let key_sender = event_sender.clone();
         // Key reading thread
