@@ -134,6 +134,7 @@ impl PipeReader {
 pub struct App {
     pub show_linenumber: bool,
     pub nlines: u16,
+    pub start_line: u16,
     pub follow_mode: bool,
     pub tab_width: u16,
     pub wraps_line: bool,
@@ -174,6 +175,7 @@ impl App {
         App {
             show_linenumber: false,
             nlines: DEFAULT_PANE_HEIGHT,
+            start_line: 0,
             follow_mode: false,
             tab_width: DEFAULT_TAB_WIDTH,
             wraps_line: false,
@@ -246,6 +248,9 @@ impl App {
         pane.set_height(self.nlines)?;
         if self.follow_mode {
             pane.goto_bottom_of_lines()?;
+        }
+        if self.start_line > 0 {
+            pane.goto_absolute_line(self.start_line - 1)?;
         }
         pane.set_message(self.mode_default_message());
         pane.refresh()?;
