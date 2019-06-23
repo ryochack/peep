@@ -1,5 +1,8 @@
 use libc;
-use std::io::Stdin;
+use std::fs::File;
+use std::io::{self, Stdin};
+use std::mem;
+use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
 use termios;
 
@@ -166,5 +169,22 @@ impl Block for Stdin {
             let mut nonblocking = 0 as libc::c_ulong;
             libc::ioctl(0, libc::FIONBIO, &mut nonblocking);
         }
+    }
+}
+
+pub fn dev_tty_size() -> io::Result<(u16, u16)> {
+    #[repr(C)]
+    struct WinSize {
+        row: libc::c_ushort,
+        col: libc::c_ushort,
+        _xpixel: libc::c_ushort,
+        _ypixel: libc::c_ushort,
+    }
+    let ftty = File::open("/dev/tty").unwrap();
+    let mut size: WinSize = unsafe { mem::zeroed() };
+    if unsafe { libc::ioctl(ftty.as_raw_fd(), libc::TIOCGWINSZ, &mut size as *mut _) } == 0 {
+        Ok((size.col, size.row))
+    } else {
+        Err(io::Error::last_os_error())
     }
 }

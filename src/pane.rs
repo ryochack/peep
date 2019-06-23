@@ -4,6 +4,7 @@ use crate::{
     csi::cursor_ext,
     search::{NullSearcher, Search},
     tab::TabExpand,
+    term,
     unicode_divide::UnicodeStrDivider,
 };
 use std::cell::RefCell;
@@ -85,7 +86,7 @@ impl<'a> Pane<'a> {
             termsize_getter: if cfg!(test) {
                 Box::new(move || Ok((10, 10)))
             } else {
-                Box::new(termion::terminal_size)
+                Box::new(Self::get_terminal_size)
             },
             tab_width: DEFAULT_TAB_WIDTH,
             wraps_line: false,
@@ -101,6 +102,14 @@ impl<'a> Pane<'a> {
         pane.move_to_message_line();
         pane.flush();
         pane
+    }
+
+    fn get_terminal_size() -> io::Result<(u16, u16)> {
+        if termion::is_tty(&io::stdout()) {
+            termion::terminal_size()
+        } else {
+            term::dev_tty_size()
+        }
     }
 
     #[cfg(test)]
