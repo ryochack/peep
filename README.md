@@ -49,6 +49,7 @@ peep [OPTION]... [FILE]
 ## Options
 ```
 -n, --lines LINES        set height of pane
+-s, --start START        set start line of data at startup
 -t, --tab-width WIDTH    set tab width
 -N, --print-line-number  print line numbers
 -f, --follow             output appended data as the file grows

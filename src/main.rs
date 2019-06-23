@@ -65,6 +65,7 @@ fn run() -> io::Result<()> {
 
     let mut opts = Options::new();
     opts.optopt("n", "lines", "set height of pane", "LINES")
+        .optopt("s", "start", "set start line of data at startup", "START")
         .optopt("t", "tab-width", "set tab width", "WIDTH")
         .optflag("N", "print-line-number", "print line numbers")
         .optflag("f", "follow", "output appended data as the file grows")
@@ -108,6 +109,9 @@ fn run() -> io::Result<()> {
     }
     if let Ok(Some(tab_width)) = matches.opt_get::<u16>("t") {
         app.tab_width = tab_width;
+    }
+    if let Ok(Some(start_line)) = matches.opt_get::<u16>("s") {
+        app.start_line = start_line;
     }
 
     app.run(&file_path)
