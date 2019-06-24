@@ -1127,9 +1127,6 @@ mod tests {
     }
 
     #[test]
-    fn test_set_highlight_searcher() {}
-
-    #[test]
     fn test_show_highlight() {
         let mut pane = gen_pane!(OpenOptions::new().write(true).open("/dev/null").unwrap());
         pane.show_highlight(true);
@@ -1173,9 +1170,21 @@ mod tests {
     fn test_refresh() {
         unimplemented!();
     }
-    #[allow(dead_code)]
+
+    #[test]
     fn test_quit() {
-        unimplemented!();
+        let mut buffer: Vec<u8> = vec!();
+        {
+            let mut pane = gen_pane!(&mut buffer);
+            let width: u16 = 8;
+            let height: u16 = 1;
+            pane.replace_termsize_getter(Box::new(TestTerminal::new(width, height)));
+            pane.quit();
+        }
+        assert_eq!(
+            buffer,
+            format!("{}{}", cursor_ext::HorizontalAbsolute(1), termion::clear::CurrentLine).as_bytes()
+        );
     }
 
     #[test]
