@@ -126,7 +126,7 @@ pub mod default {
                     self.trans_to_incsearching();
                     Some(PeepEvent::SearchIncremental("".to_owned()))
                 }
-                '1'...'9' => {
+                '1'..='9' => {
                     self.trans_to_numbering(c);
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
@@ -172,7 +172,7 @@ pub mod default {
 
         fn action_numbering(&mut self, c: char) -> Option<PeepEvent> {
             match c {
-                '0'...'9' => {
+                '0'..='9' => {
                     self.number = self.number * 10 + c.to_digit(10).unwrap() as u16;
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None

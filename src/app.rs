@@ -23,12 +23,12 @@ const FOLLOWING_HL_MESSAGE: &str = "\x1b[7mwaiting for data... \x1b[0m:";
 const DEFAULT_POLL_TIMEOUT_MS: u64 = 200;
 
 pub struct KeyEventHandler<'a> {
-    istream: &'a mut Read,
-    parser: &'a mut keybind::KeyParser,
+    istream: &'a mut dyn Read,
+    parser: &'a mut dyn keybind::KeyParser,
 }
 
 impl<'a> KeyEventHandler<'a> {
-    pub fn new(istream: &'a mut Read, parser: &'a mut keybind::KeyParser) -> Self {
+    pub fn new(istream: &'a mut dyn Read, parser: &'a mut dyn keybind::KeyParser) -> Self {
         KeyEventHandler { istream, parser }
     }
 
@@ -141,7 +141,7 @@ pub struct App {
     typing_word: Option<String>,
     file_path: String,
     seek_pos: u64,
-    searcher: Rc<RefCell<search::Search>>,
+    searcher: Rc<RefCell<dyn search::Search>>,
     linebuf: Rc<RefCell<Vec<String>>>,
     pipereader: PipeReader,
     // termios parameter moved from KeyEventHandler to App to detect Drop App.

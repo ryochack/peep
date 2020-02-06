@@ -1,6 +1,4 @@
 use super::*;
-use inotify;
-use mio;
 use mio::unix::{EventedFd, UnixReady};
 use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};

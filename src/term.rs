@@ -1,10 +1,8 @@
-use libc;
 use std::fs::File;
 use std::io::{self, Stdin};
 use std::mem;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::io::RawFd;
-use termios;
 
 // re-export
 pub use termios::{

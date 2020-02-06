@@ -21,7 +21,7 @@ pub use self::macos::*;
 /// - Ok(Some(false)) : Get event without hung up.
 /// - Ok(Some(true)) : Get event with hung up.  It is necessary to quit after read.
 pub trait FileWatch {
-    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>>;
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>>;
 }
 
 const NONE_WAIT_SEC: u64 = 60;
@@ -29,7 +29,7 @@ const NONE_WAIT_SEC: u64 = 60;
 pub struct Timeout;
 
 impl FileWatch for Timeout {
-    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<(bool)>> {
+    fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
         let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
         sleep(timeout);
         Ok(None)
@@ -41,7 +41,7 @@ pub fn file_watcher(file_path: &str, event_sender: &mpsc::Sender<PeepEvent>) {
     let mut tm = Timeout;
     let mut sw: StdinWatcher;
     let stdin_fd = io::stdin().as_raw_fd();
-    let filewatcher: &mut FileWatch = if file_path == "-" {
+    let filewatcher: &mut dyn FileWatch = if file_path == "-" {
         if let Ok(v) = StdinWatcher::new(stdin_fd) {
             sw = v;
             &mut sw

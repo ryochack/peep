@@ -162,10 +162,10 @@ impl Search for RegexSearcher {
 
     fn set_pattern(&mut self, pat: &str) -> io::Result<()> {
         let a = Regex::new(pat);
-        if a.is_err() {
+        if let Err(e) = a {
             // convert error from regex::Error to io::Error
             // TODO: unify pane error list
-            return match a.unwrap_err() {
+            return match e {
                 regex::Error::Syntax(_s) => {
                     Err(io::Error::new(io::ErrorKind::InvalidInput, "Syntax error"))
                 }
@@ -246,5 +246,9 @@ mod tests {
         assert!(searcher.find(&text).is_none());
         let mut matches = searcher.find_iter(&text);
         assert!(matches.next().is_none());
+
+        // syntax error
+        let pat = r"++";
+        assert_eq!(searcher.set_pattern(&pat).unwrap_err().to_string(), "Syntax error");
     }
 }

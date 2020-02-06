@@ -14,7 +14,6 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::io::{Seek, SeekFrom};
 use std::ops;
 use std::rc::Rc;
-use termion;
 use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_PANE_HEIGHT: u16 = 1;
@@ -35,18 +34,18 @@ impl fmt::Display for ExtendMark {
 
 pub struct Pane<'a> {
     linebuf: Rc<RefCell<Vec<String>>>,
-    writer: Box<RefCell<'a + Write>>,
+    writer: Box<RefCell<dyn 'a + Write>>,
     height: u16,
     numof_flushed_lines: u16,
     numof_semantic_flushed_lines: u16,
     cur_pos: (u16, u16), // (x, y)
     show_linenumber: bool,
     show_highlight: bool,
-    hlsearcher: Rc<RefCell<Search>>,
+    hlsearcher: Rc<RefCell<dyn Search>>,
     message: String,
     tab_width: usize,
     wraps_line: bool,
-    term: Box<TermStat>,
+    term: Box<dyn TermStat>,
 }
 
 trait TermStat {
@@ -123,7 +122,7 @@ impl<'a> Pane<'a> {
     }
 
     #[cfg(test)]
-    fn replace_termsize_getter(&mut self, getter: Box<TermStat>) {
+    fn replace_termsize_getter(&mut self, getter: Box<dyn TermStat>) {
         self.term = getter;
     }
 
@@ -244,7 +243,7 @@ impl<'a> Pane<'a> {
     /// | 101 ......
     fn gen_line_number_string(width: usize, line_number: u16) -> String {
         match width {
-            0...2 => format!("{:>2}", line_number + 1),
+            0..=2 => format!("{:>2}", line_number + 1),
             3 => format!("{:>3}", line_number + 1),
             4 => format!("{:>4}", line_number + 1),
             _ => format!("{:>5}", line_number + 1),
@@ -258,7 +257,7 @@ impl<'a> Pane<'a> {
     fn gen_blank_line_number_string(width: usize) -> String {
         // from the second line
         match width {
-            0...2 => "  ".to_owned(),
+            0..=2 => "  ".to_owned(),
             3 => "   ".to_owned(),
             4 => "    ".to_owned(),
             _ => "     ".to_owned(),
@@ -468,9 +467,9 @@ impl<'a> Pane<'a> {
 
     fn line_number_printing_width(&self) -> usize {
         match self.linebuf.borrow().len() {
-            0...99 => 2,
-            100...999 => 3,
-            1000...9999 => 4,
+            0..=99 => 2,
+            100..=999 => 3,
+            1000..=9999 => 4,
             _ => 5,
         }
     }
@@ -483,7 +482,7 @@ impl<'a> Pane<'a> {
         self.show_highlight = b;
     }
 
-    pub fn set_highlight_searcher(&mut self, searcher: Rc<RefCell<Search>>) {
+    pub fn set_highlight_searcher(&mut self, searcher: Rc<RefCell<dyn Search>>) {
         self.hlsearcher = searcher;
     }
 
