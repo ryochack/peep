@@ -1,5 +1,5 @@
  [![crates.io](https://img.shields.io/crates/v/peep.svg)](https://crates.io/crates/peep)
- [![travis](https://travis-ci.org/ryochack/peep.svg?branch=master)](https://travis-ci.org/ryochack/peep)
+ ![test](https://github.com/ryochack/peep/workflows/test/badge.svg)
 
 # peep
 The CLI text viewer tool that works like `less` command on small pane within the terminal window.
