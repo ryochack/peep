@@ -60,7 +60,7 @@ impl PipeReader {
         }
     }
 
-    /// chomp end of CRFL. Return whethre it was chomped or not.
+    /// chomp end of CRFL. Return whether it was chomped or not.
     pub fn chomp(s: &mut String) -> bool {
         if s.ends_with('\n') {
             s.pop();
