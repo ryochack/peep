@@ -58,6 +58,35 @@ peep [OPTION]... [FILE]
 ```
 
 ## Commands
+**Format**  
+
+```
+KEY-BIND            OPERATION
+```
+
+**Example 1**  
+
+```
+0 Ctr-a             Go to the beggining of line
+```
+Type `0` OR `Ctrl-a`, then `Go to the beggining of line`.
+
+**Example 2**  
+
+```
+(num)+              Increment screen height
+```
+`(num)` means that entering a number is optional.  
+If you omit the number input, the number will be processed as 1.
+
+**Example 3**  
+
+```
+[num]=              Set screen height to [num]
+```
+`[num]` means that entering a number is mandatory.
+
+
 ### Commands on Normal Mode
 ```
 (num)j Ctr-j Ctr-n  Scroll down
@@ -98,7 +127,7 @@ q Ctr-c             Quit
 #                   Toggle line number printing
 !                   Toggle line wrapping
 ESC                 Cancel
-F                   Toggle to normal mode"
+F                   Toggle to normal mode
 ```
 
 # Supported Platforms
