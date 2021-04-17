@@ -2,7 +2,9 @@
  ![test](https://github.com/ryochack/peep/workflows/test/badge.svg)
 
 # peep
-The CLI text viewer tool that works like `less` command on small pane within the terminal window.
+peep is the CLI text viewer tool.  
+This tool works interactively like `less` command on small pane within the terminal window.  
+And leave the output on the terminal when quit like `cat` command.
 
 # Demos
 ## Pane on Terminal Window
