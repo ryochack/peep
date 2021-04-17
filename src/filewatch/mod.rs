@@ -30,7 +30,7 @@ pub struct Timeout;
 
 impl FileWatch for Timeout {
     fn watch(&mut self, timeout: Option<Duration>) -> io::Result<Option<bool>> {
-        let timeout = timeout.unwrap_or(Duration::from_secs(NONE_WAIT_SEC));
+        let timeout = timeout.unwrap_or_else(|| Duration::from_secs(NONE_WAIT_SEC));
         sleep(timeout);
         Ok(None)
     }

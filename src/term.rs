@@ -66,17 +66,17 @@ pub struct TermAttrRestorer {
 }
 
 pub enum CcSymbol {
-    VEOF = termios::VEOF as isize,
-    VEOL = termios::VEOL as isize,
-    VERASE = termios::VERASE as isize,
-    VINTR = termios::VINTR as isize,
-    VKILL = termios::VKILL as isize,
-    VMIN = termios::VMIN as isize,
-    VQUIT = termios::VQUIT as isize,
-    VSTART = termios::VSTART as isize,
-    VSTOP = termios::VSTOP as isize,
-    VSUSP = termios::VSUSP as isize,
-    VTIME = termios::VTIME as isize,
+    VEof = termios::VEOF as isize,
+    VEol = termios::VEOL as isize,
+    VErase = termios::VERASE as isize,
+    VIntr = termios::VINTR as isize,
+    VKill = termios::VKILL as isize,
+    VMin = termios::VMIN as isize,
+    VQuit = termios::VQUIT as isize,
+    VStart = termios::VSTART as isize,
+    VStop = termios::VSTOP as isize,
+    VSusp = termios::VSUSP as isize,
+    VTime = termios::VTIME as isize,
 }
 
 impl TermAttrSetter {
@@ -157,14 +157,14 @@ pub trait Block {
 impl Block for Stdin {
     fn nonblocking(&self) {
         unsafe {
-            let mut nonblocking = 1 as libc::c_ulong;
+            let mut nonblocking = 1_u64;
             libc::ioctl(0, libc::FIONBIO, &mut nonblocking);
         }
     }
 
     fn blocking(&self) {
         unsafe {
-            let mut nonblocking = 0 as libc::c_ulong;
+            let mut nonblocking = 0_u64;
             libc::ioctl(0, libc::FIONBIO, &mut nonblocking);
         }
     }
