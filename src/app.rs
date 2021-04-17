@@ -288,8 +288,11 @@ impl App {
                     self.handle_follow(&event, &mut pane)?;
                 }
 
-                if event == PeepEvent::Quit {
-                    break;
+                match event {
+                    PeepEvent::Quit | PeepEvent::QuitWithClear => {
+                        break;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -472,6 +475,10 @@ impl App {
             PeepEvent::Quit => {
                 pane.quit();
             }
+            PeepEvent::QuitWithClear => {
+                pane.clear()?;
+                pane.quit();
+            }
             PeepEvent::SigInt => {}
             _ => {}
         }
@@ -533,6 +540,10 @@ impl App {
                 pane.refresh()?;
             }
             PeepEvent::Quit => {
+                pane.quit();
+            }
+            PeepEvent::QuitWithClear => {
+                pane.clear()?;
                 pane.quit();
             }
             PeepEvent::SigInt => {}

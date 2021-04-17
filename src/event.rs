@@ -31,6 +31,7 @@ pub enum PeepEvent {
 
     Cancel,
     Quit,
+    QuitWithClear,
 
     FollowMode,
     FileUpdated,

@@ -158,6 +158,14 @@ impl<'a> Pane<'a> {
         self.writer.borrow_mut().write_all(s.as_bytes()).unwrap();
     }
 
+    /// Clear pane
+    pub fn clear(&mut self) -> io::Result<()> {
+        let pane_height = self.pane_size()?.1;
+        self.return_home();
+        self.sweep(cmp::max(self.numof_flushed_lines, pane_height));
+        Ok(())
+    }
+
     /// Return the range that matches the highlight word.
     fn hl_match_ranges(&self, raw: &str) -> Vec<(usize, usize)> {
         let mut v: Vec<(usize, usize)> = vec![];

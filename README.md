@@ -108,6 +108,7 @@ G                   Go to the end of file
 n                   Search next
 N                   Search previous
 q Ctr-c             Quit
+Q                   Quit with clearing pane
 (num)+              Increment screen height
 (num)-              Decrement screen height
 [num]=              Set screen height to [num]

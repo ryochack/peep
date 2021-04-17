@@ -5,6 +5,7 @@ pub trait KeyParser {
     fn parse(&mut self, c: char) -> Option<PeepEvent>;
 }
 
+/// Default key map
 pub mod default {
     use super::*;
     use std::collections::HashMap;
@@ -93,6 +94,7 @@ pub mod default {
                 ("n", PeepEvent::SearchNext),
                 ("N", PeepEvent::SearchPrev),
                 ("q", PeepEvent::Quit),
+                ("Q", PeepEvent::QuitWithClear),
                 ("F", PeepEvent::FollowMode),
             ]
             .iter()
@@ -330,6 +332,7 @@ mod tests {
         assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
         assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
         assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
+        assert_eq!(kb.parse('Q'), Some(PeepEvent::QuitWithClear));
         assert_eq!(kb.parse('#'), Some(PeepEvent::ToggleLineNumberPrinting));
         assert_eq!(kb.parse('!'), Some(PeepEvent::ToggleLineWraps));
         assert_eq!(kb.parse('F'), Some(PeepEvent::FollowMode));

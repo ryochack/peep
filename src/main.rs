@@ -33,6 +33,7 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     n                   Search next
     N                   Search previous
     q Ctr-c             Quit
+    Q                   Clear output and Quit
     (num)+              Increment screen height
     (num)-              Decrement screen height
     [num]=              Set screen height to [num]
@@ -44,6 +45,7 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
 Commands on Following Mode:
     /pattern            Highlight the regex pattern
     q Ctr-c             Quit
+    Q                   Clear output and Quit
     (num)+              Increment screen height
     (num)-              Decrement screen height
     [num]=              Set screen height to [num]
