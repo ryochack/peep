@@ -19,6 +19,7 @@ use unicode_width::UnicodeWidthStr;
 const DEFAULT_PANE_HEIGHT: u16 = 1;
 const DEFAULT_TAB_WIDTH: usize = 4;
 
+/// Display extention mark if the line doesn't fit in the pane width
 pub struct ExtendMark(pub char);
 impl fmt::Display for ExtendMark {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -137,12 +138,12 @@ impl<'a> Pane<'a> {
         self.writer.borrow_mut().flush().unwrap();
     }
 
-    // sweep lines
+    // Sweep lines
     fn sweep(&self, nlines: u16) {
         let mut s = String::new();
         s.push_str(&format!("{}", cursor_ext::HorizontalAbsolute(1)));
         for _ in 0..nlines {
-            s.push_str(&format!("{}\nlines", termion::clear::CurrentLine));
+            s.push_str(&format!("{}\n", termion::clear::CurrentLine));
         }
         if nlines > 0 {
             s.push_str(&format!(
@@ -169,8 +170,9 @@ impl<'a> Pane<'a> {
         v
     }
 
-    fn hl_words_for_trimed(
-        trimed: &str,
+    /// Highlight trimmed string
+    fn hl_words_for_trimmed(
+        trimmed: &str,
         trimrange: &(usize, usize),
         hlranges: &[(usize, usize)],
     ) -> String {
@@ -184,11 +186,13 @@ impl<'a> Pane<'a> {
                 continue;
             } else if hl_s <= trimrange.0 && hl_e >= trimrange.1 {
                 // highlight whole line
+                // [] : trimmed string
+                // __ : high-light string
                 // _[____]_
                 hlline.push_str(&format!(
                     "{}{}{}",
                     termion::style::Invert,
-                    trimed,
+                    trimmed,
                     termion::style::Reset
                 ));
                 copied = end;
@@ -198,7 +202,7 @@ impl<'a> Pane<'a> {
                 hlline.push_str(&format!(
                     "{}{}{}",
                     termion::style::Invert,
-                    trimed.get(..hl_e - offset).unwrap(),
+                    trimmed.get(..hl_e - offset).unwrap(),
                     termion::style::Reset
                 ));
                 copied = hl_e - offset;
@@ -206,9 +210,9 @@ impl<'a> Pane<'a> {
                 //  [ __ ]
                 hlline.push_str(&format!(
                     "{}{}{}{}",
-                    trimed.get(copied..hl_s - offset).unwrap(),
+                    trimmed.get(copied..hl_s - offset).unwrap(),
                     termion::style::Invert,
-                    trimed.get(hl_s - offset..hl_e - offset).unwrap(),
+                    trimmed.get(hl_s - offset..hl_e - offset).unwrap(),
                     termion::style::Reset
                 ));
                 copied = hl_e - offset;
@@ -216,23 +220,23 @@ impl<'a> Pane<'a> {
                 //  [   _]_
                 hlline.push_str(&format!(
                     "{}{}{}{}",
-                    trimed.get(copied..hl_s - offset).unwrap(),
+                    trimmed.get(copied..hl_s - offset).unwrap(),
                     termion::style::Invert,
-                    trimed.get(hl_s - offset..).unwrap(),
+                    trimmed.get(hl_s - offset..).unwrap(),
                     termion::style::Reset
                 ));
                 copied = end;
                 break;
             } else if hl_s > trimrange.1 {
                 //  [    ]_
-                hlline.push_str(&trimed.get(copied..).unwrap().to_owned());
+                hlline.push_str(&trimmed.get(copied..).unwrap().to_owned());
                 copied = end;
                 break;
             }
         }
 
         if copied < end {
-            hlline.push_str(&trimed.get(copied..).unwrap().to_owned());
+            hlline.push_str(&trimmed.get(copied..).unwrap().to_owned());
         }
 
         hlline
@@ -280,17 +284,17 @@ impl<'a> Pane<'a> {
         // trim unicode str considering visual unicode width
         let mut ucdiv = UnicodeStrDivider::new(&raw_notab, self.width_of_text_area());
         let _ = ucdiv.seek(SeekFrom::Start(u64::from(self.cur_pos.0)));
-        let trimed = ucdiv.next().unwrap_or("");
+        let trimmed = ucdiv.next().unwrap_or("");
         let uc_range = ucdiv.last_range();
 
         // highlight line
         let hlline;
         let decorated = if self.show_highlight {
             let hl_ranges = self.hl_match_ranges(&raw_notab);
-            hlline = Self::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+            hlline = Self::hl_words_for_trimmed(&trimmed, &uc_range, &hl_ranges);
             &hlline
         } else {
-            trimed
+            trimmed
         };
 
         // add line number
@@ -355,17 +359,17 @@ impl<'a> Pane<'a> {
             }
         };
 
-        while let Some(trimed) = ucdiv.next() {
+        while let Some(trimmed) = ucdiv.next() {
             let uc_range = ucdiv.last_range();
 
             // highlight line
             let hlline;
             let decorated = if self.show_highlight {
                 let hl_ranges = self.hl_match_ranges(&raw_notab);
-                hlline = Self::hl_words_for_trimed(&trimed, &uc_range, &hl_ranges);
+                hlline = Self::hl_words_for_trimmed(&trimmed, &uc_range, &hl_ranges);
                 &hlline
             } else {
-                trimed
+                trimmed
             };
 
             // add line number
@@ -400,6 +404,7 @@ impl<'a> Pane<'a> {
         }
     }
 
+    /// Refresh pane
     pub fn refresh(&mut self) -> io::Result<()> {
         // decorate content lines
         let pane_height = self.pane_size()?.1;
@@ -1172,7 +1177,7 @@ mod tests {
 
     #[test]
     fn test_quit() {
-        let mut buffer: Vec<u8> = vec!();
+        let mut buffer: Vec<u8> = vec![];
         {
             let mut pane = gen_pane!(&mut buffer);
             let width: u16 = 8;
@@ -1182,7 +1187,12 @@ mod tests {
         }
         assert_eq!(
             buffer,
-            format!("{}{}", cursor_ext::HorizontalAbsolute(1), termion::clear::CurrentLine).as_bytes()
+            format!(
+                "{}{}",
+                cursor_ext::HorizontalAbsolute(1),
+                termion::clear::CurrentLine
+            )
+            .as_bytes()
         );
     }
 
