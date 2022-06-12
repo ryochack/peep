@@ -1,5 +1,5 @@
 use super::*;
-use mio::unix::{EventedFd, UnixReady};
+use mio;
 use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::time::Duration;
@@ -18,11 +18,10 @@ impl FileWatcher {
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(1024);
 
-        poll.register(
-            &EventedFd(&inotify.as_raw_fd()),
+        poll.registry().register(
+            &mut mio::unix::SourceFd(&inotify.as_raw_fd()),
             mio::Token(0),
-            mio::Ready::readable(),
-            mio::PollOpt::edge(),
+            mio::Interest::READABLE
         )?;
 
         Ok(Self {
@@ -43,7 +42,7 @@ impl FileWatch for FileWatcher {
             let evt = &self.events.iter().next();
             self.inotify.read_events(&mut self.buffer)?;
             if let Some(e) = evt {
-                Some(UnixReady::from(e.readiness()).is_hup())
+                Some(e.is_readable())
             } else {
                 None
             }
@@ -60,11 +59,10 @@ impl StdinWatcher {
     pub fn new(fd: RawFd) -> io::Result<Self> {
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(1024);
-        poll.register(
-            &EventedFd(&fd),
+        poll.registry().register(
+            &mut mio::unix::SourceFd(&fd),
             mio::Token(0),
-            mio::Ready::readable(),
-            mio::PollOpt::edge(),
+            mio::Interest::READABLE
         )?;
 
         Ok(Self { poll, events })
@@ -79,7 +77,7 @@ impl FileWatch for StdinWatcher {
         } else {
             let evt = &self.events.iter().next();
             if let Some(e) = evt {
-                Some(UnixReady::from(e.readiness()).is_hup())
+                Some(e.is_readable())
             } else {
                 None
             }
