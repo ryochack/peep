@@ -58,7 +58,7 @@ impl NullSearcher {
 
 impl Search for NullSearcher {
     fn as_str(&self) -> &str {
-        &""
+        ""
     }
 
     fn find(&self, _text: &str) -> Option<Match> {
@@ -94,11 +94,7 @@ impl Search for PlaneSearcher {
     }
 
     fn find(&self, text: &str) -> Option<Match> {
-        if let Some(start) = text.find(&self.pat) {
-            Some(Match::new(start, start + self.pat.len()))
-        } else {
-            None
-        }
+        text.find(&self.pat).map(|start| Match::new(start, start + self.pat.len()))
     }
 
     fn find_iter(&self, text: &str) -> MatchIter {
@@ -142,11 +138,7 @@ impl Search for RegexSearcher {
     }
 
     fn find(&self, text: &str) -> Option<Match> {
-        if let Some(m) = &self.pat.find(text) {
-            Some(Match::new(m.start(), m.end()))
-        } else {
-            None
-        }
+        self.pat.find(text).as_ref().map(|m| Match::new(m.start(), m.end()))
     }
 
     fn find_iter(&self, text: &str) -> MatchIter {

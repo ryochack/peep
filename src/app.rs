@@ -400,10 +400,10 @@ impl App {
                 self.typing_word = Some(s.to_owned());
                 pane.set_message(Some(format!("/{}", s)));
                 if s.is_empty() {
-                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    let _ = self.searcher.borrow_mut().set_pattern(s);
                     pane.show_highlight(false);
                 } else {
-                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    let _ = self.searcher.borrow_mut().set_pattern(s);
                     if let Some(pos) = self.search(pane.position()) {
                         pane.goto_absolute_line(pos.1)?;
                     }
@@ -508,10 +508,10 @@ impl App {
                 self.typing_word = Some(s.to_owned());
                 pane.set_message(Some(format!("{}/{}", FOLLOWING_HL_MESSAGE, s)));
                 if s.is_empty() {
-                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    let _ = self.searcher.borrow_mut().set_pattern(s);
                     pane.show_highlight(false);
                 } else {
-                    let _ = self.searcher.borrow_mut().set_pattern(&s);
+                    let _ = self.searcher.borrow_mut().set_pattern(s);
                     pane.show_highlight(true);
                 }
                 pane.refresh()?;

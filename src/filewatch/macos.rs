@@ -66,11 +66,7 @@ impl FileWatch for StdinWatcher {
             None
         } else {
             let evt = &self.events.iter().next();
-            if let Some(e) = evt {
-                Some(e.is_readable())
-            } else {
-                None
-            }
+            evt.as_ref().map(|e| e.is_readable())
         })
     }
 }

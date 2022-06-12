@@ -237,14 +237,14 @@ impl<'a> Pane<'a> {
                 break;
             } else if hl_s > trimrange.1 {
                 //  [    ]_
-                hlline.push_str(&trimmed.get(copied..).unwrap().to_owned());
+                hlline.push_str(trimmed.get(copied..).unwrap());
                 copied = end;
                 break;
             }
         }
 
         if copied < end {
-            hlline.push_str(&trimmed.get(copied..).unwrap().to_owned());
+            hlline.push_str(trimmed.get(copied..).unwrap());
         }
 
         hlline
@@ -299,7 +299,7 @@ impl<'a> Pane<'a> {
         let hlline;
         let decorated = if self.show_highlight {
             let hl_ranges = self.hl_match_ranges(&raw_notab);
-            hlline = Self::hl_words_for_trimmed(&trimmed, &uc_range, &hl_ranges);
+            hlline = Self::hl_words_for_trimmed(trimmed, &uc_range, &hl_ranges);
             &hlline
         } else {
             trimmed
@@ -374,7 +374,7 @@ impl<'a> Pane<'a> {
             let hlline;
             let decorated = if self.show_highlight {
                 let hl_ranges = self.hl_match_ranges(&raw_notab);
-                hlline = Self::hl_words_for_trimmed(&trimmed, &uc_range, &hl_ranges);
+                hlline = Self::hl_words_for_trimmed(trimmed, &uc_range, &hl_ranges);
                 &hlline
             } else {
                 trimmed
@@ -424,7 +424,7 @@ impl<'a> Pane<'a> {
             .iter()
             .enumerate()
         {
-            let deco = self.decorate(&line, (buf_range.start + i) as u16);
+            let deco = self.decorate(line, (buf_range.start + i) as u16);
             let br = BufReader::new(deco.as_bytes());
             self.numof_semantic_flushed_lines = i as u16 + 1;
             for lline in br.lines() {

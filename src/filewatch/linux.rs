@@ -41,11 +41,7 @@ impl FileWatch for FileWatcher {
         } else {
             let evt = &self.events.iter().next();
             self.inotify.read_events(&mut self.buffer)?;
-            if let Some(e) = evt {
-                Some(e.is_readable())
-            } else {
-                None
-            }
+            evt.as_ref().map(|e| e.is_readable())
         })
     }
 }
@@ -76,11 +72,7 @@ impl FileWatch for StdinWatcher {
             None
         } else {
             let evt = &self.events.iter().next();
-            if let Some(e) = evt {
-                Some(e.is_readable())
-            } else {
-                None
-            }
+            evt.as_ref().map(|e| e.is_readable())
         })
     }
 }
