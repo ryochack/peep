@@ -21,7 +21,7 @@ impl FileWatcher {
         poll.registry().register(
             &mut mio::unix::SourceFd(&file.as_raw_fd()),
             mio::Token(0),
-            mio::Interest::READABLE
+            mio::Interest::READABLE,
         )?;
 
         Ok(Self { file, poll, events })
@@ -52,7 +52,7 @@ impl StdinWatcher {
         poll.registry().register(
             &mut mio::unix::SourceFd(&fd),
             mio::Token(0),
-            mio::Interest::READABLE
+            mio::Interest::READABLE,
         )?;
 
         Ok(Self { poll, events })

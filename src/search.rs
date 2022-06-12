@@ -94,7 +94,8 @@ impl Search for PlaneSearcher {
     }
 
     fn find(&self, text: &str) -> Option<Match> {
-        text.find(&self.pat).map(|start| Match::new(start, start + self.pat.len()))
+        text.find(&self.pat)
+            .map(|start| Match::new(start, start + self.pat.len()))
     }
 
     fn find_iter(&self, text: &str) -> MatchIter {
@@ -138,7 +139,10 @@ impl Search for RegexSearcher {
     }
 
     fn find(&self, text: &str) -> Option<Match> {
-        self.pat.find(text).as_ref().map(|m| Match::new(m.start(), m.end()))
+        self.pat
+            .find(text)
+            .as_ref()
+            .map(|m| Match::new(m.start(), m.end()))
     }
 
     fn find_iter(&self, text: &str) -> MatchIter {
@@ -241,6 +245,9 @@ mod tests {
 
         // syntax error
         let pat = r"++";
-        assert_eq!(searcher.set_pattern(&pat).unwrap_err().to_string(), "Syntax error");
+        assert_eq!(
+            searcher.set_pattern(&pat).unwrap_err().to_string(),
+            "Syntax error"
+        );
     }
 }
