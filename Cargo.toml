@@ -25,3 +25,8 @@ nix = "0.24"
 mio = "0.8"
 inotify = "0.10"
 unicode-width = "0.1"
+
+[profile.release]
+strip = true
+lto = true
+
