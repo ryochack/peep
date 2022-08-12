@@ -11,21 +11,20 @@ pub mod default {
     use std::collections::HashMap;
 
     const ALLOWED_CTRL_KEYCODES: [char; 10] = [
-        /* Ctr-a = */ '\x01', /* Ctr-b = */ '\x02', /* Ctr-d = */ '\x04',
-        /* Ctr-e = */ '\x05', /* Ctr-f = */ '\x06', /* Ctr-j = */ '\x0a',
-        /* Ctr-k = */ '\x0b', /* Ctr-n = */ '\x0e', /* Ctr-p = */ '\x10',
-        /* Ctr-u = */ '\x15',
+        /* Ctrl-a = */ '\x01', /* Ctrl-b = */ '\x02', /* Ctrl-d = */ '\x04',
+        /* Ctrl-e = */ '\x05', /* Ctrl-f = */ '\x06', /* Ctrl-j = */ '\x0a',
+        /* Ctrl-k = */ '\x0b', /* Ctrl-n = */ '\x0e', /* Ctrl-p = */ '\x10',
+        /* Ctrl-u = */ '\x15',
     ];
 
-    // Ready -> IncSearching
-    // IncSearching -> Ready
+    // Key input state transition
     //
-    // Ready -> Numbering
-    // Numbering -> Ready : cancel
-    // Numbering -> Commanding
-    //
-    // Ready -> Commanding
-    // Commanding -> Ready
+    // | State        | '/'          | 0-9       | Any Commands | Enter | Esc   | (Complete Command) |
+    // | ------------ | ------------ | --------- | ------------ | ----- | ----- | ------------------ |
+    // | Ready        | IncSearching | Numbering | Commanding   | -     | -     | -                  |
+    // | IncSearching | -            | -         | -            | Ready | Ready | -                  |
+    // | Numbering    | -            | -         | Commanding   | Ready | Ready | -                  |
+    // | Commanding   | -            | -         | -            | -     | -     | Ready              |
     enum State {
         Ready,
         IncSearching,
@@ -62,24 +61,24 @@ pub mod default {
             // let mut default: HashMap<&str, PeepEvent> = [
             [
                 ("j", PeepEvent::MoveDown(1)),
-                (/* Ctr-j */ "\x0a", PeepEvent::MoveDown(1)),
-                (/* Ctr-n */ "\x0e", PeepEvent::MoveDown(1)),
+                (/* Ctrl-j */ "\x0a", PeepEvent::MoveDown(1)),
+                (/* Ctrl-n */ "\x0e", PeepEvent::MoveDown(1)),
                 ("k", PeepEvent::MoveUp(1)),
-                (/* Ctr-k */ "\x0b", PeepEvent::MoveUp(1)),
-                (/* Ctr-p */ "\x10", PeepEvent::MoveUp(1)),
+                (/* Ctrl-k */ "\x0b", PeepEvent::MoveUp(1)),
+                (/* Ctrl-p */ "\x10", PeepEvent::MoveUp(1)),
                 ("h", PeepEvent::MoveLeft(1)),
                 ("l", PeepEvent::MoveRight(1)),
                 ("d", PeepEvent::MoveDownHalfPages(1)),
-                (/* Ctr-d */ "\x04", PeepEvent::MoveDownHalfPages(1)),
+                (/* Ctrl-d */ "\x04", PeepEvent::MoveDownHalfPages(1)),
                 ("u", PeepEvent::MoveUpHalfPages(1)),
-                (/* Ctr-u */ "\x15", PeepEvent::MoveUpHalfPages(1)),
+                (/* Ctrl-u */ "\x15", PeepEvent::MoveUpHalfPages(1)),
                 ("H", PeepEvent::MoveLeftHalfPages(1)),
                 ("L", PeepEvent::MoveRightHalfPages(1)),
                 ("f", PeepEvent::MoveDownPages(1)),
-                (/* Ctr-f */ "\x06", PeepEvent::MoveDownPages(1)),
+                (/* Ctrl-f */ "\x06", PeepEvent::MoveDownPages(1)),
                 (" ", PeepEvent::MoveDownPages(1)),
                 ("b", PeepEvent::MoveUpPages(1)),
-                (/* Ctr-b */ "\x02", PeepEvent::MoveUpPages(1)),
+                (/* Ctrl-b */ "\x02", PeepEvent::MoveUpPages(1)),
                 ("0", PeepEvent::MoveToHeadOfLine),
                 (/* Ctrl-a */ "\x01", PeepEvent::MoveToHeadOfLine),
                 ("$", PeepEvent::MoveToEndOfLine),
