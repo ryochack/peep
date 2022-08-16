@@ -6,6 +6,8 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::thread::spawn;
 
+use termion::input::TermRead;
+
 use crate::{
     event::PeepEvent,
     filewatch::{self, FileWatch},
@@ -33,8 +35,8 @@ impl<'a> KeyEventHandler<'a> {
     }
 
     pub fn read(&mut self) -> Option<PeepEvent> {
-        for b in self.istream.bytes().filter_map(|v| v.ok()) {
-            let v = self.parser.parse(b as char);
+        for k in self.istream.keys().filter_map(|v| v.ok()) {
+            let v = self.parser.parse(k);
             if v.is_some() {
                 return v;
             }
@@ -103,7 +105,7 @@ impl PipeReader {
                 let mut cursor = Cursor::new(&buf[..cap]);
                 loop {
                     let mut line = String::new();
-                    if let Ok(n) = cursor.read_line(&mut line) {
+                    if let Ok(n) = BufRead::read_line(&mut cursor, &mut line) {
                         if n == 0 {
                             break;
                         }

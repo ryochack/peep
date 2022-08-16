@@ -1,21 +1,15 @@
 /// Key Bind Parser
 use crate::event::PeepEvent;
+use termion::event::Key;
 
 pub trait KeyParser {
-    fn parse(&mut self, c: char) -> Option<PeepEvent>;
+    fn parse(&mut self, k: termion::event::Key) -> Option<PeepEvent>;
 }
 
 /// Default key map
 pub mod default {
     use super::*;
     use std::collections::HashMap;
-
-    const ALLOWED_CTRL_KEYCODES: [char; 10] = [
-        /* Ctrl-a = */ '\x01', /* Ctrl-b = */ '\x02', /* Ctrl-d = */ '\x04',
-        /* Ctrl-e = */ '\x05', /* Ctrl-f = */ '\x06', /* Ctrl-j = */ '\x0a',
-        /* Ctrl-k = */ '\x0b', /* Ctrl-n = */ '\x0e', /* Ctrl-p = */ '\x10',
-        /* Ctrl-u = */ '\x15',
-    ];
 
     // Key input state transition
     //
@@ -32,69 +26,68 @@ pub mod default {
         Commanding,
     }
 
-    pub struct KeyBind<'a> {
+    pub struct KeyBind {
         state: State,
         number: u16,
-        wip_keys: String,
-        cmap: HashMap<&'a str, PeepEvent>,
+        searching_keys: String,
+        cmap: HashMap<Key, PeepEvent>,
     }
 
-    impl<'a> Default for KeyBind<'a> {
+    impl Default for KeyBind {
         fn default() -> Self {
             Self::new()
         }
     }
 
-    impl<'a> KeyBind<'a> {
+    impl KeyBind {
         pub fn new() -> Self {
             let mut kb = KeyBind {
                 state: State::Ready,
                 number: 0,
-                wip_keys: String::with_capacity(64),
+                searching_keys: String::with_capacity(64),
                 cmap: HashMap::new(),
             };
             kb.cmap = KeyBind::default_command_table();
             kb
         }
 
-        fn default_command_table() -> HashMap<&'a str, PeepEvent> {
-            // let mut default: HashMap<&str, PeepEvent> = [
+        fn default_command_table() -> HashMap<Key, PeepEvent> {
             [
-                ("j", PeepEvent::MoveDown(1)),
-                (/* Ctrl-j */ "\x0a", PeepEvent::MoveDown(1)),
-                (/* Ctrl-n */ "\x0e", PeepEvent::MoveDown(1)),
-                ("k", PeepEvent::MoveUp(1)),
-                (/* Ctrl-k */ "\x0b", PeepEvent::MoveUp(1)),
-                (/* Ctrl-p */ "\x10", PeepEvent::MoveUp(1)),
-                ("h", PeepEvent::MoveLeft(1)),
-                ("l", PeepEvent::MoveRight(1)),
-                ("d", PeepEvent::MoveDownHalfPages(1)),
-                (/* Ctrl-d */ "\x04", PeepEvent::MoveDownHalfPages(1)),
-                ("u", PeepEvent::MoveUpHalfPages(1)),
-                (/* Ctrl-u */ "\x15", PeepEvent::MoveUpHalfPages(1)),
-                ("H", PeepEvent::MoveLeftHalfPages(1)),
-                ("L", PeepEvent::MoveRightHalfPages(1)),
-                ("f", PeepEvent::MoveDownPages(1)),
-                (/* Ctrl-f */ "\x06", PeepEvent::MoveDownPages(1)),
-                (" ", PeepEvent::MoveDownPages(1)),
-                ("b", PeepEvent::MoveUpPages(1)),
-                (/* Ctrl-b */ "\x02", PeepEvent::MoveUpPages(1)),
-                ("0", PeepEvent::MoveToHeadOfLine),
-                (/* Ctrl-a */ "\x01", PeepEvent::MoveToHeadOfLine),
-                ("$", PeepEvent::MoveToEndOfLine),
-                (/* Ctrl-e */ "\x05", PeepEvent::MoveToEndOfLine),
-                ("g", PeepEvent::MoveToTopOfLines),
-                ("G", PeepEvent::MoveToBottomOfLines),
-                ("#", PeepEvent::ToggleLineNumberPrinting),
-                ("!", PeepEvent::ToggleLineWraps),
-                ("-", PeepEvent::DecrementLines(1)),
-                ("+", PeepEvent::IncrementLines(1)),
-                ("=", PeepEvent::SetNumOfLines(0)),
-                ("n", PeepEvent::SearchNext),
-                ("N", PeepEvent::SearchPrev),
-                ("q", PeepEvent::Quit),
-                ("Q", PeepEvent::QuitWithClear),
-                ("F", PeepEvent::FollowMode),
+                (Key::Char('j'), PeepEvent::MoveDown(1)),
+                (Key::Ctrl('j'), PeepEvent::MoveDown(1)),
+                (Key::Ctrl('n'), PeepEvent::MoveDown(1)),
+                (Key::Char('k'), PeepEvent::MoveUp(1)),
+                (Key::Ctrl('k'), PeepEvent::MoveUp(1)),
+                (Key::Ctrl('p'), PeepEvent::MoveUp(1)),
+                (Key::Char('h'), PeepEvent::MoveLeft(1)),
+                (Key::Char('l'), PeepEvent::MoveRight(1)),
+                (Key::Char('d'), PeepEvent::MoveDownHalfPages(1)),
+                (Key::Ctrl('d'), PeepEvent::MoveDownHalfPages(1)),
+                (Key::Char('u'), PeepEvent::MoveUpHalfPages(1)),
+                (Key::Ctrl('u'), PeepEvent::MoveUpHalfPages(1)),
+                (Key::Char('H'), PeepEvent::MoveLeftHalfPages(1)),
+                (Key::Char('L'), PeepEvent::MoveRightHalfPages(1)),
+                (Key::Char('f'), PeepEvent::MoveDownPages(1)),
+                (Key::Ctrl('f'), PeepEvent::MoveDownPages(1)),
+                (Key::Char(' '), PeepEvent::MoveDownPages(1)),
+                (Key::Char('b'), PeepEvent::MoveUpPages(1)),
+                (Key::Ctrl('b'), PeepEvent::MoveUpPages(1)),
+                (Key::Char('0'), PeepEvent::MoveToHeadOfLine),
+                (Key::Ctrl('a'), PeepEvent::MoveToHeadOfLine),
+                (Key::Char('$'), PeepEvent::MoveToEndOfLine),
+                (Key::Ctrl('e'), PeepEvent::MoveToEndOfLine),
+                (Key::Char('g'), PeepEvent::MoveToTopOfLines),
+                (Key::Char('G'), PeepEvent::MoveToBottomOfLines),
+                (Key::Char('#'), PeepEvent::ToggleLineNumberPrinting),
+                (Key::Char('!'), PeepEvent::ToggleLineWraps),
+                (Key::Char('-'), PeepEvent::DecrementLines(1)),
+                (Key::Char('+'), PeepEvent::IncrementLines(1)),
+                (Key::Char('='), PeepEvent::SetNumOfLines(0)),
+                (Key::Char('n'), PeepEvent::SearchNext),
+                (Key::Char('N'), PeepEvent::SearchPrev),
+                (Key::Char('q'), PeepEvent::Quit),
+                (Key::Char('Q'), PeepEvent::QuitWithClear),
+                (Key::Char('F'), PeepEvent::FollowMode),
             ]
             .iter()
             .cloned()
@@ -104,66 +97,63 @@ pub mod default {
         fn trans_to_ready(&mut self) {
             self.state = State::Ready;
             self.number = 0;
-            self.wip_keys.clear();
         }
         fn trans_to_incsearching(&mut self) {
             self.state = State::IncSearching;
             self.number = 0;
-            self.wip_keys.clear();
         }
         fn trans_to_numbering(&mut self, c: char) {
             self.state = State::Numbering;
             self.number = c.to_digit(10).unwrap() as u16;
-            self.wip_keys.push(c);
+            self.searching_keys.push(c);
         }
         fn trans_to_commanding(&mut self) {
             self.state = State::Commanding;
-            self.wip_keys.clear();
         }
 
-        fn action_ready(&mut self, c: char) -> Option<PeepEvent> {
-            match c {
-                '/' => {
+        fn action_ready(&mut self, k: Key) -> Option<PeepEvent> {
+            match k {
+                Key::Char('/') => {
                     self.trans_to_incsearching();
                     Some(PeepEvent::SearchIncremental("".to_owned()))
                 }
-                '1'..='9' => {
+                Key::Char(c @ '1'..='9') => {
                     self.trans_to_numbering(c);
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
-                c if !c.is_control() | ALLOWED_CTRL_KEYCODES.contains(&c) => {
+                Key::Char(_) | Key::Ctrl(_) => {
                     self.trans_to_commanding();
-                    self.action_commanding(c)
+                    self.action_commanding(k)
                 }
-                // ESC
-                '\x1b' => Some(PeepEvent::Cancel),
+                Key::Esc => Some(PeepEvent::Cancel),
                 _ => None,
             }
         }
 
-        fn action_incsearching(&mut self, c: char) -> Option<PeepEvent> {
-            match c {
-                c if !c.is_control() => {
-                    self.wip_keys.push(c);
-                    Some(PeepEvent::SearchIncremental(self.wip_keys.to_owned()))
-                }
-                '\x08' | '\x7f' => {
-                    // BackSpace, Delete
-                    if self.wip_keys.pop().is_none() {
-                        self.trans_to_ready();
-                        Some(PeepEvent::Cancel)
-                    } else {
-                        Some(PeepEvent::SearchIncremental(self.wip_keys.to_owned()))
-                    }
-                }
-                '\n' => {
-                    // LF
+        fn action_incsearching(&mut self, k: Key) -> Option<PeepEvent> {
+            match k {
+                Key::Char('\n') => {
+                    self.searching_keys.clear();
                     self.trans_to_ready();
                     Some(PeepEvent::SearchTrigger)
                 }
-                '\x1b' => {
+                Key::Char(c) => {
+                    self.searching_keys.push(c);
+                    Some(PeepEvent::SearchIncremental(self.searching_keys.to_owned()))
+                }
+                Key::Backspace | Key::Delete => {
+                    if self.searching_keys.pop().is_none() {
+                        self.searching_keys.clear();
+                        self.trans_to_ready();
+                        Some(PeepEvent::Cancel)
+                    } else {
+                        Some(PeepEvent::SearchIncremental(self.searching_keys.to_owned()))
+                    }
+                }
+                Key::Esc => {
                     // ESC -> Cancel
+                    self.searching_keys.clear();
                     self.trans_to_ready();
                     Some(PeepEvent::Cancel)
                 }
@@ -171,57 +161,44 @@ pub mod default {
             }
         }
 
-        fn action_numbering(&mut self, c: char) -> Option<PeepEvent> {
-            match c {
-                '0'..='9' => {
+        fn action_numbering(&mut self, k: Key) -> Option<PeepEvent> {
+            match k {
+                Key::Char(c @ '0'..='9') => {
                     self.number = self.number * 10 + c.to_digit(10).unwrap() as u16;
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
-                c if !c.is_control() => {
-                    self.trans_to_commanding();
-                    self.action_commanding(c)
-                }
-                '\x1b' | '\n' => {
+                Key::Esc | Key::Char('\n') => {
                     // ESC and LF -> Cancel
                     self.trans_to_ready();
                     None
                     // Some(PeepEvent::Message(None))
                 }
+                Key::Char(_) | Key::Ctrl(_) => {
+                    self.trans_to_commanding();
+                    self.action_commanding(k)
+                }
                 _ => None,
             }
         }
 
-        fn action_commanding(&mut self, c: char) -> Option<PeepEvent> {
-            let mut needs_trans = false;
-            let op = match c {
-                c if !c.is_control() | ALLOWED_CTRL_KEYCODES.contains(&c) => {
-                    self.wip_keys.push(c);
-                    match self.cmap.get::<str>(&self.wip_keys) {
+        fn action_commanding(&mut self, k: Key) -> Option<PeepEvent> {
+            let op = match k {
+                Key::Char(_) | Key::Ctrl(_) => {
+                    match self.cmap.get::<Key>(&k) {
                         Some(v) => {
-                            needs_trans = true;
+                            // hit command
                             self.combine_command(v.to_owned())
                         }
                         None => {
-                            if self.cmap.keys().any(|&k| k.starts_with(&self.wip_keys)) {
-                                // has candidates
-                                None
-                            } else {
-                                // not exist => cancel
-                                needs_trans = true;
-                                Some(PeepEvent::Message(None))
-                            }
+                            // not exist => cancel
+                            Some(PeepEvent::Message(None))
                         }
                     }
                 }
-                _ => {
-                    needs_trans = true;
-                    Some(PeepEvent::Message(None))
-                }
+                _ => Some(PeepEvent::Message(None)),
             };
-            if needs_trans {
-                self.trans_to_ready()
-            };
+            self.trans_to_ready();
             op
         }
 
@@ -275,19 +252,19 @@ pub mod default {
             }
         }
 
-        fn trans(&mut self, c: char) -> Option<PeepEvent> {
+        fn trans(&mut self, k: Key) -> Option<PeepEvent> {
             match self.state {
-                State::Ready => self.action_ready(c),
-                State::IncSearching => self.action_incsearching(c),
-                State::Numbering => self.action_numbering(c),
-                State::Commanding => self.action_commanding(c),
+                State::Ready => self.action_ready(k),
+                State::IncSearching => self.action_incsearching(k),
+                State::Numbering => self.action_numbering(k),
+                State::Commanding => self.action_commanding(k),
             }
         }
     }
 
-    impl<'a> KeyParser for KeyBind<'a> {
-        fn parse(&mut self, c: char) -> Option<PeepEvent> {
-            self.trans(c)
+    impl KeyParser for KeyBind {
+        fn parse(&mut self, k: Key) -> Option<PeepEvent> {
+            self.trans(k)
         }
     }
 }
@@ -297,135 +274,99 @@ mod tests {
     use super::*;
     use crate::event::PeepEvent;
 
+    #[rustfmt::skip]
     #[test]
     fn test_keybind_command() {
         let mut kb = default::KeyBind::new();
 
         // normal commands
-        assert_eq!(kb.parse('j'), Some(PeepEvent::MoveDown(1)));
-        assert_eq!(kb.parse('\x0a'), Some(PeepEvent::MoveDown(1)));
-        assert_eq!(kb.parse('\x0e'), Some(PeepEvent::MoveDown(1)));
-        assert_eq!(kb.parse('k'), Some(PeepEvent::MoveUp(1)));
-        assert_eq!(kb.parse('\x0b'), Some(PeepEvent::MoveUp(1)));
-        assert_eq!(kb.parse('\x10'), Some(PeepEvent::MoveUp(1)));
-        assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(1)));
-        assert_eq!(kb.parse('l'), Some(PeepEvent::MoveRight(1)));
-        assert_eq!(kb.parse('d'), Some(PeepEvent::MoveDownHalfPages(1)));
-        assert_eq!(kb.parse('\x04'), Some(PeepEvent::MoveDownHalfPages(1)));
-        assert_eq!(kb.parse('u'), Some(PeepEvent::MoveUpHalfPages(1)));
-        assert_eq!(kb.parse('\x15'), Some(PeepEvent::MoveUpHalfPages(1)));
-        assert_eq!(kb.parse('f'), Some(PeepEvent::MoveDownPages(1)));
-        assert_eq!(kb.parse('\x06'), Some(PeepEvent::MoveDownPages(1)));
-        assert_eq!(kb.parse(' '), Some(PeepEvent::MoveDownPages(1)));
-        assert_eq!(kb.parse('b'), Some(PeepEvent::MoveUpPages(1)));
-        assert_eq!(kb.parse('\x02'), Some(PeepEvent::MoveUpPages(1)));
-        assert_eq!(kb.parse('0'), Some(PeepEvent::MoveToHeadOfLine));
-        assert_eq!(kb.parse('\x01'), Some(PeepEvent::MoveToHeadOfLine));
-        assert_eq!(kb.parse('$'), Some(PeepEvent::MoveToEndOfLine));
-        assert_eq!(kb.parse('\x05'), Some(PeepEvent::MoveToEndOfLine));
-        assert_eq!(kb.parse('g'), Some(PeepEvent::MoveToTopOfLines));
-        assert_eq!(kb.parse('G'), Some(PeepEvent::MoveToBottomOfLines));
-        assert_eq!(kb.parse('-'), Some(PeepEvent::DecrementLines(1)));
-        assert_eq!(kb.parse('+'), Some(PeepEvent::IncrementLines(1)));
-        assert_eq!(kb.parse('='), None);
-        assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
-        assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
-        assert_eq!(kb.parse('q'), Some(PeepEvent::Quit));
-        assert_eq!(kb.parse('Q'), Some(PeepEvent::QuitWithClear));
-        assert_eq!(kb.parse('#'), Some(PeepEvent::ToggleLineNumberPrinting));
-        assert_eq!(kb.parse('!'), Some(PeepEvent::ToggleLineWraps));
-        assert_eq!(kb.parse('F'), Some(PeepEvent::FollowMode));
-        assert_eq!(kb.parse('\x1b'), Some(PeepEvent::Cancel));
+        assert_eq!(kb.parse(Key::Char('j')), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse(Key::Ctrl('j')), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse(Key::Ctrl('n')), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse(Key::Char('k')), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse(Key::Ctrl('k')), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse(Key::Ctrl('p')), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse(Key::Char('h')), Some(PeepEvent::MoveLeft(1)));
+        assert_eq!(kb.parse(Key::Char('l')), Some(PeepEvent::MoveRight(1)));
+        assert_eq!(kb.parse(Key::Char('d')), Some(PeepEvent::MoveDownHalfPages(1)));
+        assert_eq!(kb.parse(Key::Ctrl('d')), Some(PeepEvent::MoveDownHalfPages(1)));
+        assert_eq!(kb.parse(Key::Char('u')), Some(PeepEvent::MoveUpHalfPages(1)));
+        assert_eq!(kb.parse(Key::Ctrl('u')), Some(PeepEvent::MoveUpHalfPages(1)));
+        assert_eq!(kb.parse(Key::Char('f')), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse(Key::Ctrl('f')), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse(Key::Char(' ')), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse(Key::Char('b')), Some(PeepEvent::MoveUpPages(1)));
+        assert_eq!(kb.parse(Key::Ctrl('b')), Some(PeepEvent::MoveUpPages(1)));
+        assert_eq!(kb.parse(Key::Char('0')), Some(PeepEvent::MoveToHeadOfLine));
+        assert_eq!(kb.parse(Key::Ctrl('a')), Some(PeepEvent::MoveToHeadOfLine));
+        assert_eq!(kb.parse(Key::Char('$')), Some(PeepEvent::MoveToEndOfLine));
+        assert_eq!(kb.parse(Key::Ctrl('e')), Some(PeepEvent::MoveToEndOfLine));
+        assert_eq!(kb.parse(Key::Char('g')), Some(PeepEvent::MoveToTopOfLines));
+        assert_eq!(kb.parse(Key::Char('G')), Some(PeepEvent::MoveToBottomOfLines));
+        assert_eq!(kb.parse(Key::Char('-')), Some(PeepEvent::DecrementLines(1)));
+        assert_eq!(kb.parse(Key::Char('+')), Some(PeepEvent::IncrementLines(1)));
+        assert_eq!(kb.parse(Key::Char('=')), None);
+        assert_eq!(kb.parse(Key::Char('n')), Some(PeepEvent::SearchNext));
+        assert_eq!(kb.parse(Key::Char('N')), Some(PeepEvent::SearchPrev));
+        assert_eq!(kb.parse(Key::Char('q')), Some(PeepEvent::Quit));
+        assert_eq!(kb.parse(Key::Char('Q')), Some(PeepEvent::QuitWithClear));
+        assert_eq!(kb.parse(Key::Char('#')), Some(PeepEvent::ToggleLineNumberPrinting));
+        assert_eq!(kb.parse(Key::Char('!')), Some(PeepEvent::ToggleLineWraps));
+        assert_eq!(kb.parse(Key::Char('F')), Some(PeepEvent::FollowMode));
+        assert_eq!(kb.parse(Key::Esc), Some(PeepEvent::Cancel));
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_keybind_number() {
         let mut kb = default::KeyBind::new();
 
         // normal commands
-        assert_eq!(kb.parse('1'), None);
-        assert_eq!(kb.parse('2'), None);
-        assert_eq!(kb.parse('\n'), None);
+        assert_eq!(kb.parse(Key::Char('1')), None);
+        assert_eq!(kb.parse(Key::Char('2')), None);
+        assert_eq!(kb.parse(Key::Char('\n')), None);
 
-        assert_eq!(kb.parse('1'), None);
-        assert_eq!(kb.parse('2'), None);
-        assert_eq!(kb.parse('\x1b'), None);
+        assert_eq!(kb.parse(Key::Char('1')), None);
+        assert_eq!(kb.parse(Key::Char('2')), None);
+        assert_eq!(kb.parse(Key::Esc), None);
 
-        assert_eq!(kb.parse('2'), None);
-        assert_eq!(kb.parse('j'), Some(PeepEvent::MoveDown(2)));
+        assert_eq!(kb.parse(Key::Char('2')), None);
+        assert_eq!(kb.parse(Key::Char('j')), Some(PeepEvent::MoveDown(2)));
 
-        assert_eq!(kb.parse('1'), None);
-        assert_eq!(kb.parse('0'), None);
-        assert_eq!(kb.parse('h'), Some(PeepEvent::MoveLeft(10)));
+        assert_eq!(kb.parse(Key::Char('1')), None);
+        assert_eq!(kb.parse(Key::Char('0')), None);
+        assert_eq!(kb.parse(Key::Char('h')), Some(PeepEvent::MoveLeft(10)));
 
-        assert_eq!(kb.parse('1'), None);
-        assert_eq!(kb.parse('0'), None);
-        assert_eq!(kb.parse('='), Some(PeepEvent::SetNumOfLines(10)));
+        assert_eq!(kb.parse(Key::Char('1')), None);
+        assert_eq!(kb.parse(Key::Char('0')), None);
+        assert_eq!(kb.parse(Key::Char('=')), Some(PeepEvent::SetNumOfLines(10)));
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_keybind_search() {
         let mut kb = default::KeyBind::new();
 
         // search commands
-        assert_eq!(
-            kb.parse('/'),
-            Some(PeepEvent::SearchIncremental("".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('w'),
-            Some(PeepEvent::SearchIncremental("w".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('o'),
-            Some(PeepEvent::SearchIncremental("wo".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('r'),
-            Some(PeepEvent::SearchIncremental("wor".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('d'),
-            Some(PeepEvent::SearchIncremental("word".to_owned()))
-        );
-        assert_eq!(kb.parse('\n'), Some(PeepEvent::SearchTrigger));
+        assert_eq!(kb.parse(Key::Char('/')), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse(Key::Char('w')), Some(PeepEvent::SearchIncremental("w".to_owned())));
+        assert_eq!(kb.parse(Key::Char('o')), Some(PeepEvent::SearchIncremental("wo".to_owned())));
+        assert_eq!(kb.parse(Key::Char('r')), Some(PeepEvent::SearchIncremental("wor".to_owned())));
+        assert_eq!(kb.parse(Key::Char('d')), Some(PeepEvent::SearchIncremental("word".to_owned())));
+        assert_eq!(kb.parse(Key::Char('\n')), Some(PeepEvent::SearchTrigger));
 
-        assert_eq!(
-            kb.parse('/'),
-            Some(PeepEvent::SearchIncremental("".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('a'),
-            Some(PeepEvent::SearchIncremental("a".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('b'),
-            Some(PeepEvent::SearchIncremental("ab".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('\x08'),
-            Some(PeepEvent::SearchIncremental("a".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('\x08'),
-            Some(PeepEvent::SearchIncremental("".to_owned()))
-        );
-        assert_eq!(kb.parse('\x08'), Some(PeepEvent::Cancel));
+        assert_eq!(kb.parse(Key::Char('/')), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse(Key::Char('a')), Some(PeepEvent::SearchIncremental("a".to_owned())));
+        assert_eq!(kb.parse(Key::Char('b')), Some(PeepEvent::SearchIncremental("ab".to_owned())));
+        assert_eq!(kb.parse(Key::Backspace), Some(PeepEvent::SearchIncremental("a".to_owned())));
+        assert_eq!(kb.parse(Key::Backspace), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse(Key::Backspace), Some(PeepEvent::Cancel));
 
-        assert_eq!(
-            kb.parse('/'),
-            Some(PeepEvent::SearchIncremental("".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('w'),
-            Some(PeepEvent::SearchIncremental("w".to_owned()))
-        );
-        assert_eq!(
-            kb.parse('o'),
-            Some(PeepEvent::SearchIncremental("wo".to_owned()))
-        );
-        assert_eq!(kb.parse('\n'), Some(PeepEvent::SearchTrigger));
-        assert_eq!(kb.parse('n'), Some(PeepEvent::SearchNext));
-        assert_eq!(kb.parse('N'), Some(PeepEvent::SearchPrev));
+        assert_eq!(kb.parse(Key::Char('/')), Some(PeepEvent::SearchIncremental("".to_owned())));
+        assert_eq!(kb.parse(Key::Char('w')), Some(PeepEvent::SearchIncremental("w".to_owned())));
+        assert_eq!(kb.parse(Key::Char('o')), Some(PeepEvent::SearchIncremental("wo".to_owned())));
+        assert_eq!(kb.parse(Key::Char('\n')), Some(PeepEvent::SearchTrigger));
+        assert_eq!(kb.parse(Key::Char('n')), Some(PeepEvent::SearchNext));
+        assert_eq!(kb.parse(Key::Char('N')), Some(PeepEvent::SearchPrev));
     }
 }
