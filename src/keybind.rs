@@ -55,6 +55,7 @@ pub mod default {
             [
                 (Key::Char('j'), PeepEvent::MoveDown(1)),
                 (Key::Ctrl('j'), PeepEvent::MoveDown(1)),
+                (Key::Char('\n'), PeepEvent::MoveDown(1)), // It means same as Ctrl-j
                 (Key::Ctrl('n'), PeepEvent::MoveDown(1)),
                 (Key::Char('k'), PeepEvent::MoveUp(1)),
                 (Key::Ctrl('k'), PeepEvent::MoveUp(1)),
@@ -168,8 +169,8 @@ pub mod default {
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
-                Key::Esc | Key::Char('\n') => {
-                    // ESC and LF -> Cancel
+                Key::Esc => {
+                    // ESC -> Cancel
                     self.trans_to_ready();
                     None
                     // Some(PeepEvent::Message(None))
