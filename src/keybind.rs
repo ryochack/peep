@@ -325,7 +325,7 @@ mod tests {
         // normal commands
         assert_eq!(kb.parse(Key::Char('1')), None);
         assert_eq!(kb.parse(Key::Char('2')), None);
-        assert_eq!(kb.parse(Key::Char('\n')), None);
+        assert_eq!(kb.parse(Key::Char('\n')), Some(PeepEvent::MoveDown(12)));
 
         assert_eq!(kb.parse(Key::Char('1')), None);
         assert_eq!(kb.parse(Key::Char('2')), None);
