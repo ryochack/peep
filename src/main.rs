@@ -14,26 +14,30 @@ fn print_usage(prog: &str, version: &str, opts: &Options) {
     println!("{}", opts.usage(&brief));
     println!(
         "Commands on Normal Mode:
-    (num)j Ctr-j Ctr-n  Scroll down
-    (num)k Ctr-k Ctr-p  Scroll up
-    (num)d Ctr-d        Scroll down half page
-    (num)u Ctr-u        Scroll up half page
-    (num)f Ctr-f SPACE  Scroll down a page
-    (num)b Ctr-b        Scroll up a page
-    (num)l              Scroll horizontally right
-    (num)h              Scroll horizontally left
+    (num)j Ctrl-j Ctrl-n DownArrow CR LF
+                        Scroll down
+    (num)k Ctrl-k Ctrl-p UpArrow
+                        Scroll up
+    (num)d Ctrl-d       Scroll down half page
+    (num)u Ctrl-u       Scroll up half page
+    (num)f Ctrl-f PageDown SPACE
+                        Scroll down a page
+    (num)b Ctrl-b PageUp
+                        Scroll up a page
+    (num)l RightArrow   Scroll horizontally right
+    (num)h LeftArrow    Scroll horizontally left
     (num)L              Scroll horizontally right half page
     (num)H              Scroll horizontally left half page
-    0 Ctr-a             Go to the beggining of line
-    $ Ctr-e             Go to the end of line
-    g                   Go to the beggining of file
-    G                   Go to the end of file
+    0 Ctrl-a            Go to the beggining of line
+    $ Ctrl-e            Go to the end of line
+    g Home              Go to the beggining of file
+    G End               Go to the end of file
     [num]g [num]G       Go to line [num]
     /pattern            Search forward in the file for the regex pattern
     n                   Search next
     N                   Search previous
-    q Ctr-c             Quit
-    Q                   Clear output and Quit
+    q Ctrl-c            Quit
+    Q                   Quit with clearing pane
     (num)+              Increment screen height
     (num)-              Decrement screen height
     [num]=              Set screen height to [num]
@@ -66,14 +70,14 @@ fn run() -> io::Result<()> {
     let args: Vec<String> = env::args().skip(1).collect();
 
     let mut opts = Options::new();
-    opts.optopt("n", "lines", "set height of pane", "LINES")
-        .optopt("s", "start", "set start line of data at startup", "START")
-        .optopt("t", "tab-width", "set tab width", "WIDTH")
-        .optflag("N", "print-line-number", "print line numbers")
-        .optflag("f", "follow", "output appended data as the file grows")
-        .optflag("w", "wrap", "wrap text line")
-        .optflag("h", "help", "show this usage")
-        .optflag("v", "version", "show version");
+    opts.optopt("n", "lines", "Set height of pane", "LINES")
+        .optopt("s", "start", "Set start line of data at startup", "START")
+        .optopt("t", "tab-width", "Set tab width", "WIDTH")
+        .optflag("N", "print-line-number", "Print line numbers")
+        .optflag("f", "follow", "Output appended data as the file grows")
+        .optflag("w", "wrap", "Wrap text line")
+        .optflag("h", "help", "Show this usage")
+        .optflag("v", "version", "Show version");
 
     let matches = opts
         .parse(args)

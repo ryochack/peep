@@ -91,33 +91,33 @@ If you omit the number input, the number will be processed as 1.
 
 ### Commands on Normal Mode
 ```
-(num)j Ctrl-j Ctrl-n Enter  Scroll down
-(num)k Ctrl-k Ctrl-p        Scroll up
-(num)d Ctrl-d               Scroll down half page
-(num)u Ctrl-u               Scroll up half page
-(num)f Ctrl-f SPACE         Scroll down a page
-(num)b Ctrl-b               Scroll up a page
-(num)l                      Scroll horizontally right
-(num)h                      Scroll horizontally left
-(num)L                      Scroll horizontally right half page
-(num)H                      Scroll horizontally left half page
-0 Ctrl-a                    Go to the beggining of line
-$ Ctrl-e                    Go to the end of line
-g                           Go to the beggining of file
-G                           Go to the end of file
-[num]g [num]G               Go to line [num]
-/pattern                    Search forward in the file for the regex pattern
-n                           Search next
-N                           Search previous
-q Ctrl-c                    Quit
-Q                           Quit with clearing pane
-(num)+                      Increment screen height
-(num)-                      Decrement screen height
-[num]=                      Set screen height to [num]
-#                           Toggle line number printing
-!                           Toggle line wrapping
-ESC                         Cancel
-F                           Toggle to follow mode
+(num)j Ctrl-j Ctrl-n DownArrow CR LF  Scroll down
+(num)k Ctrl-k Ctrl-p UpArrow          Scroll up
+(num)d Ctrl-d                         Scroll down half page
+(num)u Ctrl-u                         Scroll up half page
+(num)f Ctrl-f PageDown SPACE          Scroll down a page
+(num)b Ctrl-b PageUp                  Scroll up a page
+(num)l RightArrow                     Scroll horizontally right
+(num)h LeftArrow                      Scroll horizontally left
+(num)L                                Scroll horizontally right half page
+(num)H                                Scroll horizontally left half page
+0 Ctrl-a                              Go to the beggining of line
+$ Ctrl-e                              Go to the end of line
+g Home                                Go to the beggining of file
+G End                                 Go to the end of file
+[num]g [num]G                         Go to line [num]
+/pattern                              Search forward in the file for the regex pattern
+n                                     Search next
+N                                     Search previous
+q Ctrl-c                              Quit
+Q                                     Quit with clearing pane
+(num)+                                Increment screen height
+(num)-                                Decrement screen height
+[num]=                                Set screen height to [num]
+#                                     Toggle line number printing
+!                                     Toggle line wrapping
+ESC                                   Cancel
+F                                     Toggle to follow mode
 ```
 
 ### Commands on Follow Mode

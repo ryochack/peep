@@ -57,11 +57,15 @@ pub mod default {
                 (Key::Ctrl('j'), PeepEvent::MoveDown(1)),
                 (Key::Char('\n'), PeepEvent::MoveDown(1)), // It means same as Ctrl-j
                 (Key::Ctrl('n'), PeepEvent::MoveDown(1)),
+                (Key::Down, PeepEvent::MoveDown(1)),
                 (Key::Char('k'), PeepEvent::MoveUp(1)),
                 (Key::Ctrl('k'), PeepEvent::MoveUp(1)),
                 (Key::Ctrl('p'), PeepEvent::MoveUp(1)),
+                (Key::Up, PeepEvent::MoveUp(1)),
                 (Key::Char('h'), PeepEvent::MoveLeft(1)),
+                (Key::Left, PeepEvent::MoveLeft(1)),
                 (Key::Char('l'), PeepEvent::MoveRight(1)),
+                (Key::Right, PeepEvent::MoveRight(1)),
                 (Key::Char('d'), PeepEvent::MoveDownHalfPages(1)),
                 (Key::Ctrl('d'), PeepEvent::MoveDownHalfPages(1)),
                 (Key::Char('u'), PeepEvent::MoveUpHalfPages(1)),
@@ -70,15 +74,19 @@ pub mod default {
                 (Key::Char('L'), PeepEvent::MoveRightHalfPages(1)),
                 (Key::Char('f'), PeepEvent::MoveDownPages(1)),
                 (Key::Ctrl('f'), PeepEvent::MoveDownPages(1)),
+                (Key::PageDown, PeepEvent::MoveDownPages(1)),
                 (Key::Char(' '), PeepEvent::MoveDownPages(1)),
                 (Key::Char('b'), PeepEvent::MoveUpPages(1)),
                 (Key::Ctrl('b'), PeepEvent::MoveUpPages(1)),
+                (Key::PageUp, PeepEvent::MoveUpPages(1)),
                 (Key::Char('0'), PeepEvent::MoveToHeadOfLine),
                 (Key::Ctrl('a'), PeepEvent::MoveToHeadOfLine),
                 (Key::Char('$'), PeepEvent::MoveToEndOfLine),
                 (Key::Ctrl('e'), PeepEvent::MoveToEndOfLine),
                 (Key::Char('g'), PeepEvent::MoveToTopOfLines),
+                (Key::Home, PeepEvent::MoveToTopOfLines),
                 (Key::Char('G'), PeepEvent::MoveToBottomOfLines),
+                (Key::End, PeepEvent::MoveToBottomOfLines),
                 (Key::Char('#'), PeepEvent::ToggleLineNumberPrinting),
                 (Key::Char('!'), PeepEvent::ToggleLineWraps),
                 (Key::Char('-'), PeepEvent::DecrementLines(1)),
@@ -123,12 +131,11 @@ pub mod default {
                     // Some(PeepEvent::Message(Some(self.number.to_string())))
                     None
                 }
-                Key::Char(_) | Key::Ctrl(_) => {
+                Key::Esc => Some(PeepEvent::Cancel),
+                _ => {
                     self.trans_to_commanding();
                     self.action_commanding(k)
                 }
-                Key::Esc => Some(PeepEvent::Cancel),
-                _ => None,
             }
         }
 
@@ -175,29 +182,23 @@ pub mod default {
                     None
                     // Some(PeepEvent::Message(None))
                 }
-                Key::Char(_) | Key::Ctrl(_) => {
+                _ => {
                     self.trans_to_commanding();
                     self.action_commanding(k)
                 }
-                _ => None,
             }
         }
 
         fn action_commanding(&mut self, k: Key) -> Option<PeepEvent> {
-            let op = match k {
-                Key::Char(_) | Key::Ctrl(_) => {
-                    match self.cmap.get::<Key>(&k) {
-                        Some(v) => {
-                            // hit command
-                            self.combine_command(v.to_owned())
-                        }
-                        None => {
-                            // not exist => cancel
-                            Some(PeepEvent::Message(None))
-                        }
-                    }
+            let op = match self.cmap.get::<Key>(&k) {
+                Some(v) => {
+                    // hit command
+                    self.combine_command(v.to_owned())
                 }
-                _ => Some(PeepEvent::Message(None)),
+                None => {
+                    // not exist => cancel
+                    Some(PeepEvent::Message(None))
+                }
             };
             self.trans_to_ready();
             op
@@ -284,11 +285,15 @@ mod tests {
         assert_eq!(kb.parse(Key::Char('j')), Some(PeepEvent::MoveDown(1)));
         assert_eq!(kb.parse(Key::Ctrl('j')), Some(PeepEvent::MoveDown(1)));
         assert_eq!(kb.parse(Key::Ctrl('n')), Some(PeepEvent::MoveDown(1)));
+        assert_eq!(kb.parse(Key::Down), Some(PeepEvent::MoveDown(1)));
         assert_eq!(kb.parse(Key::Char('k')), Some(PeepEvent::MoveUp(1)));
         assert_eq!(kb.parse(Key::Ctrl('k')), Some(PeepEvent::MoveUp(1)));
         assert_eq!(kb.parse(Key::Ctrl('p')), Some(PeepEvent::MoveUp(1)));
+        assert_eq!(kb.parse(Key::Up), Some(PeepEvent::MoveUp(1)));
         assert_eq!(kb.parse(Key::Char('h')), Some(PeepEvent::MoveLeft(1)));
+        assert_eq!(kb.parse(Key::Left), Some(PeepEvent::MoveLeft(1)));
         assert_eq!(kb.parse(Key::Char('l')), Some(PeepEvent::MoveRight(1)));
+        assert_eq!(kb.parse(Key::Right), Some(PeepEvent::MoveRight(1)));
         assert_eq!(kb.parse(Key::Char('d')), Some(PeepEvent::MoveDownHalfPages(1)));
         assert_eq!(kb.parse(Key::Ctrl('d')), Some(PeepEvent::MoveDownHalfPages(1)));
         assert_eq!(kb.parse(Key::Char('u')), Some(PeepEvent::MoveUpHalfPages(1)));
@@ -296,14 +301,18 @@ mod tests {
         assert_eq!(kb.parse(Key::Char('f')), Some(PeepEvent::MoveDownPages(1)));
         assert_eq!(kb.parse(Key::Ctrl('f')), Some(PeepEvent::MoveDownPages(1)));
         assert_eq!(kb.parse(Key::Char(' ')), Some(PeepEvent::MoveDownPages(1)));
+        assert_eq!(kb.parse(Key::PageDown), Some(PeepEvent::MoveDownPages(1)));
         assert_eq!(kb.parse(Key::Char('b')), Some(PeepEvent::MoveUpPages(1)));
         assert_eq!(kb.parse(Key::Ctrl('b')), Some(PeepEvent::MoveUpPages(1)));
+        assert_eq!(kb.parse(Key::PageUp), Some(PeepEvent::MoveUpPages(1)));
         assert_eq!(kb.parse(Key::Char('0')), Some(PeepEvent::MoveToHeadOfLine));
         assert_eq!(kb.parse(Key::Ctrl('a')), Some(PeepEvent::MoveToHeadOfLine));
         assert_eq!(kb.parse(Key::Char('$')), Some(PeepEvent::MoveToEndOfLine));
         assert_eq!(kb.parse(Key::Ctrl('e')), Some(PeepEvent::MoveToEndOfLine));
         assert_eq!(kb.parse(Key::Char('g')), Some(PeepEvent::MoveToTopOfLines));
+        assert_eq!(kb.parse(Key::Home), Some(PeepEvent::MoveToTopOfLines));
         assert_eq!(kb.parse(Key::Char('G')), Some(PeepEvent::MoveToBottomOfLines));
+        assert_eq!(kb.parse(Key::End), Some(PeepEvent::MoveToBottomOfLines));
         assert_eq!(kb.parse(Key::Char('-')), Some(PeepEvent::DecrementLines(1)));
         assert_eq!(kb.parse(Key::Char('+')), Some(PeepEvent::IncrementLines(1)));
         assert_eq!(kb.parse(Key::Char('=')), None);
